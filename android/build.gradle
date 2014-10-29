@@ -1,8 +1,8 @@
 // each of the version numbers must be 0-99
 def versionMajor = 0
-def versionMinor = 42
-def versionPatch = 0
-def versionBuild = 2 // this is non-zero for any dev build
+def versionMinor = 102
+def versionPatch = 1
+def versionBuild = 0 // this is non-zero for any dev build
 
 buildscript {
     repositories {
@@ -273,9 +273,6 @@ void writeVersionName(String versionName) {
     def matcherVersionNumber = patternVersionNumber.matcher(manifestText)
     def manifestContent = matcherVersionNumber.replaceAll("versionName=\"" + versionName + "\"")
     manifestFile.write(manifestContent)
-
-    def versionFile = file("../VERSION")
-    versionFile.write(versionName)
 }
 
 // Yay for apk basenames that you can only figure out by reading the
