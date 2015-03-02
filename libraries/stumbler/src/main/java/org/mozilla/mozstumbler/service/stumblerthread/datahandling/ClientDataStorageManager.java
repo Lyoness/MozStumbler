@@ -23,6 +23,7 @@ public class ClientDataStorageManager extends DataStorageManager {
     private ClientDataStorageManager(Context c, StorageIsEmptyTracker tracker, long maxBytesStoredOnDisk, int maxWeeksDataStored) {
         super(c, tracker, maxBytesStoredOnDisk, maxWeeksDataStored);
 
+        System.out.println("Sending a broadcast!");
         mPersistedOnDiskUploadStats.forceBroadcastOfSyncStats();
     }
 
@@ -34,7 +35,10 @@ public class ClientDataStorageManager extends DataStorageManager {
     // DataStorageManager.  Sorta.  You can't really override static methods.
     public static synchronized DataStorageManager createGlobalInstance(Context context, StorageIsEmptyTracker tracker,
                                                                        long maxBytesStoredOnDisk, int maxWeeksDataStored) {
+        System.out.println("pre Instantiating CDSM!");
+
         if (sInstance == null) {
+            System.out.println("Instantiating CDSM!");
             sInstance = new ClientDataStorageManager(context, tracker, maxBytesStoredOnDisk, maxWeeksDataStored);
         }
         return sInstance;
