@@ -9,15 +9,12 @@ import android.app.Activity;
 import android.app.Application;
 import android.app.Notification;
 import android.content.BroadcastReceiver;
-import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
-import android.os.IBinder;
 import android.os.StrictMode;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
@@ -70,10 +67,7 @@ public class MainApp extends Application
     public static final String ACTION_LOW_BATTERY = ACTION_BASE + ".LOW_BATTERY";
     private static boolean sHasBootedOnce;
     private final String LOG_TAG = LoggerUtil.makeLogTag(MainApp.class);
-    private final long MAX_BYTES_DISK_STORAGE = 1000 * 1000 * 20; // 20MB for Mozilla Stumbler by default, is ok?
-    private final int MAX_WEEKS_OLD_STORED = 4;
-    private ClientStumblerService mStumblerService;
-    private ServiceConnection mConnection;
+
     private ServiceBroadcastReceiver mReceiver;
     private WeakReference<IMainActivity> mMainActivity = new WeakReference<IMainActivity>(null);
     private boolean mIsScanningPausedDueToNoMotion;
@@ -128,10 +122,6 @@ public class MainApp extends Application
 
     public ClientPrefs getPrefs(Context c) {
         return ClientPrefs.getInstance(c);
-    }
-
-    public ClientStumblerService getService() {
-        return mStumblerService;
     }
 
     public void setMainActivity(IMainActivity mainActivity) {
@@ -203,36 +193,10 @@ public class MainApp extends Application
         LogActivity.LogMessageReceiver.createGlobalInstance(this);
         // This will create, and register the receiver
         ObservedLocationsReceiver.createGlobalInstance(this.getApplicationContext());
-
         enableStrictMode();
 
         mReceiver = new ServiceBroadcastReceiver();
         mReceiver.register();
-
-        mConnection = new ServiceConnection() {
-            public void onServiceConnected(ComponentName className, IBinder binder) {
-                // binder can be null, android is terrible.
-                if (binder == null) {
-                    return;
-                }
-
-                ClientStumblerService.StumblerBinder serviceBinder = (ClientStumblerService.StumblerBinder) binder;
-                mStumblerService = serviceBinder.getServiceAndInitialize(Thread.currentThread(),
-                        MAX_BYTES_DISK_STORAGE, MAX_WEEKS_OLD_STORED);
-
-                Log.d(LOG_TAG, "Service connected");
-                if (mMainActivity.get() != null) {
-                    mMainActivity.get().updateUiOnMainThread(true);
-                }
-            }
-
-            public void onServiceDisconnected(ComponentName className) {
-                mStumblerService = null;
-            }
-        };
-
-        Intent intent = new Intent(this, ClientStumblerService.class);
-        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
 
         LocalBroadcastManager lbm = LocalBroadcastManager.getInstance(this);
         lbm.registerReceiver(mReceivePausedOrUnpausedState, new IntentFilter(ScanManager.ACTION_SCAN_UNPAUSED_USER_MOVED));
@@ -254,11 +218,6 @@ public class MainApp extends Application
     @Override
     public void onTerminate() {
         super.onTerminate();
-        if (mConnection != null) {
-            unbindService(mConnection);
-        }
-        mConnection = null;
-        mStumblerService = null;
         if (mReceiver != null) {
             mReceiver.unregister();
         }
@@ -266,32 +225,28 @@ public class MainApp extends Application
         Log.d(LOG_TAG, "onTerminate");
     }
 
+
     public void startScanning() {
-        if (mStumblerService == null) {
-            return;
-        }
-        NotificationUtil nm = new NotificationUtil(this.getApplicationContext());
-        Notification notification = nm.buildNotification(getString(R.string.stop_scanning));
-        mStumblerService.startForeground(NotificationUtil.NOTIFICATION_ID, notification);
-        mStumblerService.startScanning();
         if (mMainActivity.get() != null) {
-            mMainActivity.get().updateUiOnMainThread(false);
+            IMainActivity mainDrawerActivity = mMainActivity.get();
+            mainDrawerActivity.startStumblerService();
+        }
+    }
+
+
+    public void restartScanning() {
+        if (mMainActivity.get() != null) {
+            IMainActivity mainDrawerActivity = mMainActivity.get();
+            mainDrawerActivity.restartStumblerService();
         }
     }
 
     public void stopScanning() {
-        if (mStumblerService == null) {
-            return;
-        }
-
         mIsScanningPausedDueToNoMotion = false;
 
-        mStumblerService.stopScanning();
-        mStumblerService.stopForeground(true);
-
         if (mMainActivity.get() != null) {
-            mMainActivity.get().updateUiOnMainThread(false);
-            mMainActivity.get().stop();
+            IMainActivity mainDrawerActivity = mMainActivity.get();
+            mainDrawerActivity.stopStumblerService();
         }
 
         AsyncUploader uploader = new AsyncUploader();
@@ -328,13 +283,6 @@ public class MainApp extends Application
                 .penaltyLog().build());
     }
 
-    public boolean isScanningOrPaused() {
-        if (mStumblerService == null) {
-            return false;
-        }
-        return !mStumblerService.isStopped();
-    }
-
     public void showDeveloperDialog(Activity activity) {
         activity.startActivity(new Intent(activity, DeveloperActivity.class));
     }
@@ -352,30 +300,7 @@ public class MainApp extends Application
         }
     }
 
-    @Override
-    public void onLowMemory() {
-        super.onLowMemory();
-
-        if (mStumblerService != null) {
-            mStumblerService.handleLowMemoryNotification();
-        }
-    }
-
-    @TargetApi(14)
-    @Override
-    public void onTrimMemory(int level) {
-        super.onTrimMemory(level);
-
-        if (mStumblerService != null) {
-            mStumblerService.handleLowMemoryNotification();
-        }
-    }
-
     public void updateMotionDetected() {
-        if (mStumblerService == null) {
-            return;
-        }
-
         AppGlobals.guiLogInfo("Is motionless: " + mIsScanningPausedDueToNoMotion);
 
         NotificationUtil util = new NotificationUtil(this.getApplicationContext());
@@ -425,11 +350,6 @@ public class MainApp extends Application
             } else if (action.equals(ACTION_LOW_BATTERY)) {
                 AppGlobals.guiLogInfo("Stop, low battery detected.");
                 stopScanning();
-            }
-
-            if (mMainActivity.get() != null) {
-                boolean updateMetrics = action.equals(Reporter.ACTION_NEW_BUNDLE);
-                mMainActivity.get().updateUiOnMainThread(updateMetrics);
             }
         }
     }

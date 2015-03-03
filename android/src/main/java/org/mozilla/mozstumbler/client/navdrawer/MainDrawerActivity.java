@@ -36,6 +36,8 @@ import org.mozilla.mozstumbler.client.Updater;
 import org.mozilla.mozstumbler.client.mapview.MapFragment;
 import org.mozilla.mozstumbler.client.subactivities.FirstRunFragment;
 import org.mozilla.mozstumbler.client.subactivities.LeaderboardActivity;
+import org.mozilla.mozstumbler.svclocator.ServiceLocator;
+import org.mozilla.mozstumbler.svclocator.services.log.ILogger;
 import org.mozilla.mozstumbler.svclocator.services.log.LoggerUtil;
 
 public class MainDrawerActivity
@@ -43,9 +45,13 @@ public class MainDrawerActivity
         implements IMainActivity {
 
     private static final String LOG_TAG = LoggerUtil.makeLogTag(MainDrawerActivity.class);
+    ILogger Log = (ILogger) ServiceLocator.getInstance().getService(ILogger.class);
+
     private static final int MENU_START_STOP = 1;
     private DrawerLayout mDrawerLayout;
+
     private ActionBarDrawerToggle mDrawerToggle;
+
     private MetricsView mMetricsView;
     private MapFragment mMapFragment;
     private MenuItem mMenuItemStartStop;
@@ -53,9 +59,15 @@ public class MainDrawerActivity
             new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                    mMapFragment.toggleScanning(mMenuItemStartStop);
+                    Log.i(LOG_TAG, "Start/Stop button clicked: " + isChecked);
+                    if (isChecked) {
+                        startStumblerService();
+                    } else {
+                        stopStumblerService();
+                    }
                 }
             };
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -142,11 +154,12 @@ public class MainDrawerActivity
             MenuItemCompat.setShowAsAction(mMenuItemStartStop, MenuItemCompat.SHOW_AS_ACTION_ALWAYS);
         }
 
-        updateStartStopMenuItemState();
         return true;
     }
 
-    private void updateStartStopMenuItemState() {
+    // This used to be called from updateOnUIThread, but that no longer exists.
+    /*
+    private void updateStartStopMenuItemState(boolean stumblingEnabled, boolean svcIsPaused) {
         if (mMenuItemStartStop == null) {
             return;
         }
@@ -156,26 +169,26 @@ public class MainDrawerActivity
             return;
         }
 
-        ClientStumblerService svc = app.getService();
-        if (svc == null) {
-            return;
-        }
-        if (!svc.isStopped()) {
-            keepScreenOn(ClientPrefs.getInstance(this).getKeepScreenOn());
-        } else {
+        if (stumblingEnabled) {
             keepScreenOn(false);
+        } else {
+            keepScreenOn(ClientPrefs.getInstance(this).getKeepScreenOn());
         }
 
         if (Build.VERSION.SDK_INT >= 14) {
             Switch s = (Switch) mMenuItemStartStop.getActionView();
             s.setOnCheckedChangeListener(null);
+
             if (app.isScanningOrPaused() && !s.isChecked()) {
                 s.setChecked(true);
             } else if (!app.isScanningOrPaused() && s.isChecked()) {
                 s.setChecked(false);
             }
+
             s.setOnCheckedChangeListener(mStartStopButtonListener);
         } else {
+
+            // Deal with API < 14 later
             boolean buttonStateIsScanning = mMenuItemStartStop.getTitle().equals(getString(R.string.stop_scanning));
             if (app.isScanningOrPaused() && !buttonStateIsScanning) {
                 mMenuItemStartStop.setIcon(android.R.drawable.ic_media_pause);
@@ -184,10 +197,11 @@ public class MainDrawerActivity
                 mMenuItemStartStop.setIcon(android.R.drawable.ic_media_play);
                 mMenuItemStartStop.setTitle(R.string.start_scanning);
             }
-        }
+         }
 
-        mMapFragment.dimToolbar();
+        mMapFragment.updateToolbarDim();
     }
+    */
 
     @Override
     protected void onPostCreate(Bundle savedInstanceState) {
@@ -220,11 +234,41 @@ public class MainDrawerActivity
             findViewById(android.R.id.content).postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    getApp().startScanning();
+                    startStumblerService();
                 }
             }, 750);
         }
     }
+
+    public void startStumblerService() {
+        Intent startServiceIntent = new Intent(this,
+                ClientStumblerService.class);
+        startServiceIntent.setAction(ClientStumblerService.ACTION_ACTIVE_SCANNING_START_REQUEST);
+        this.getApplicationContext().startService(startServiceIntent);
+    }
+
+    public void toggleStumblerService() {
+        Intent startServiceIntent = new Intent(this,
+                ClientStumblerService.class);
+        startServiceIntent.setAction(ClientStumblerService.ACTION_ACTIVE_SCANNING_TOGGLE_REQUEST);
+        this.getApplicationContext().startService(startServiceIntent);
+    }
+
+    public void restartStumblerService() {
+        Intent startServiceIntent = new Intent(this,
+                ClientStumblerService.class);
+        startServiceIntent.setAction(ClientStumblerService.ACTION_ACTIVE_SCANNING_RESTART_REQUEST);
+        this.getApplicationContext().startService(startServiceIntent);
+
+    }
+
+    public void stopStumblerService() {
+        Intent startServiceIntent = new Intent(this,
+                ClientStumblerService.class);
+        startServiceIntent.setAction(ClientStumblerService.ACTION_ACTIVE_SCANNING_STOP_REQUEST);
+        this.getApplicationContext().startService(startServiceIntent);
+    }
+
 
     @Override
     public void onConfigurationChanged(Configuration newConfig) {
@@ -243,9 +287,10 @@ public class MainDrawerActivity
         if (mDrawerToggle.onOptionsItemSelected(item)) {
             return true;
         }
+
         switch (item.getItemId()) {
             case MENU_START_STOP:
-                mMapFragment.toggleScanning(item);
+                toggleStumblerService();
                 return true;
             case R.id.action_view_leaderboard:
                 startActivity(new Intent(getApplication(), LeaderboardActivity.class));
@@ -255,38 +300,27 @@ public class MainDrawerActivity
         }
     }
 
-    public void updateUiOnMainThread(final boolean updateMetrics) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                if (mMapFragment == null || mMapFragment.getActivity() == null) {
-                    return;
-                }
-
-                updateStartStopMenuItemState();
-                updateNumberDisplay(updateMetrics);
-            }
-        });
-    }
+    // TODO: All service metrics should be pushed out by using an intent broadcast
+    // so that we don't need to hold onto the pointer of the StumblerService
+    /*
 
     private void updateNumberDisplay(boolean updateMetrics) {
-        ClientStumblerService service = getApp().getService();
-        if (service == null) {
-            return;
-        }
-
         mMapFragment.formatTextView(R.id.text_cells_visible, "%d", service.getVisibleCellInfoCount());
         mMapFragment.formatTextView(R.id.text_wifis_visible, "%d", service.getVisibleAPCount());
 
-        int observationCount = service.getObservationCount();
-        mMapFragment.formatTextView(R.id.text_observation_count, "%d", observationCount);
 
         if (updateMetrics) {
-            mMetricsView.setObservationCount(observationCount, service.getUniqueCellCount(),
-                    service.getUniqueAPCount(), getApp().isScanningOrPaused());
+            int observationCount = service.getObservationCount();
+            mMapFragment.formatTextView(R.id.text_observation_count, "%d", observationCount);
+
+            mMetricsView.setObservationCount(observationCount,
+                    service.getUniqueCellCount(),
+                    service.getUniqueAPCount(),
+                    getApp().isScanningOrPaused());
             mMetricsView.update();
         }
     }
+    */
 
     @Override
     public void setUploadState(boolean isUploadingObservations) {

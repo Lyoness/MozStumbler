@@ -62,9 +62,6 @@ public class LocationChangeSensorTest {
         receivedIntent.clear();
 
         // Register a listener for each of the intents that are used by motion detection
-
-        // TODO: move the intents into a single location for the package so that we know where to
-        // find them all.
         LocalBroadcastManager.getInstance(ctx).registerReceiver(callbackReceiver,
                 new IntentFilter(MotionSensor.ACTION_USER_MOTION_DETECTED));
         LocalBroadcastManager.getInstance(ctx).registerReceiver(callbackReceiver,

@@ -93,13 +93,11 @@ public class ReporterTest {
     public void setUp() {
         ctx = getApplicationContext();
 
-        StorageTracker tracker = new StorageTracker();
-
         long maxBytes = 20000;
         int maxWeeks = 10;
 
         // The DM is required to handle the flush() operation in the Reporter.
-        dm = DataStorageManager.createGlobalInstance(ctx, tracker, maxBytes, maxWeeks);
+        dm = DataStorageManager.createGlobalInstance(ctx, maxBytes, maxWeeks);
 
         rp = new Reporter();
 
@@ -189,8 +187,4 @@ public class ReporterTest {
         return Robolectric.application;
     }
 
-    public class StorageTracker implements DataStorageManager.StorageIsEmptyTracker {
-        public void notifyStorageStateEmpty(boolean isEmpty) {
-        }
-    }
 }

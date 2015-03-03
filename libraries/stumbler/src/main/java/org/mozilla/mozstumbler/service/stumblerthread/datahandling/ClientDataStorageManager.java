@@ -20,8 +20,8 @@ public class ClientDataStorageManager extends DataStorageManager {
 
     private static final String LOG_TAG = LoggerUtil.makeLogTag(ClientDataStorageManager.class);
 
-    private ClientDataStorageManager(Context c, StorageIsEmptyTracker tracker, long maxBytesStoredOnDisk, int maxWeeksDataStored) {
-        super(c, tracker, maxBytesStoredOnDisk, maxWeeksDataStored);
+    private ClientDataStorageManager(Context c, long maxBytesStoredOnDisk, int maxWeeksDataStored) {
+        super(c, maxBytesStoredOnDisk, maxWeeksDataStored);
     }
 
     public static String sdcardArchivePath() {
@@ -30,10 +30,11 @@ public class ClientDataStorageManager extends DataStorageManager {
 
     // This 'overrides' the static createGlobalInstance method
     // DataStorageManager.  Sorta.  You can't really override static methods.
-    public static synchronized DataStorageManager createGlobalInstance(Context context, StorageIsEmptyTracker tracker,
-                                                                       long maxBytesStoredOnDisk, int maxWeeksDataStored) {
+    public static synchronized DataStorageManager createGlobalInstance(Context context,
+                                                                       long maxBytesStoredOnDisk,
+                                                                       int maxWeeksDataStored) {
         if (sInstance == null) {
-            sInstance = new ClientDataStorageManager(context, tracker, maxBytesStoredOnDisk, maxWeeksDataStored);
+            sInstance = new ClientDataStorageManager(context, maxBytesStoredOnDisk, maxWeeksDataStored);
         }
         return sInstance;
     }

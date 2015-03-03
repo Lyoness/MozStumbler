@@ -10,14 +10,12 @@ import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.location.Location;
-import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
 import android.view.LayoutInflater;
-import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -30,7 +28,6 @@ import org.json.JSONObject;
 import org.mozilla.mozstumbler.BuildConfig;
 import org.mozilla.mozstumbler.R;
 import org.mozilla.mozstumbler.client.ClientPrefs;
-import org.mozilla.mozstumbler.client.ClientStumblerService;
 import org.mozilla.mozstumbler.client.MainApp;
 import org.mozilla.mozstumbler.client.ObservedLocationsReceiver;
 import org.mozilla.mozstumbler.client.mapview.tiles.AbstractMapOverlay;
@@ -456,34 +453,17 @@ public class MapFragment extends android.support.v4.app.Fragment
     }
 
     @SuppressLint("NewApi")
-    public void dimToolbar() {
+    public void updateToolbarDim(boolean scanningEnabled) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.HONEYCOMB) {
             return;
         }
         View v = mRootView.findViewById(R.id.status_toolbar_layout);
 
-        final ClientStumblerService service = getApplication().getService();
-        float alpha = 0.5f;
-        if (service != null && !service.isStopped()) {
-            alpha = 1.0f;
+        float alpha = 1.0f;
+        if (!scanningEnabled) {
+            alpha = 0.5f;
         }
         v.setAlpha(alpha);
-    }
-
-    public void toggleScanning(MenuItem menuItem) {
-        MainApp app = getApplication();
-        if (app.getService() == null) {
-            return;
-        }
-
-        boolean isScanning = app.isScanningOrPaused();
-        if (isScanning) {
-            app.stopScanning();
-        } else {
-            app.startScanning();
-        }
-
-        dimToolbar();
     }
 
     private void showCopyright() {
@@ -520,8 +500,10 @@ public class MapFragment extends android.support.v4.app.Fragment
     void updateGPSInfo(int satellites, int fixes) {
         formatTextView(R.id.text_satellites_avail, "%d", satellites);
         formatTextView(R.id.text_satellites_used, "%d", fixes);
-        // @TODO this is still not accurate
-        int icon = fixes >= GPSScanner.MIN_SAT_USED_IN_FIX ? R.drawable.ic_gps_receiving_flaticondotcom : R.drawable.ic_gps_no_signal_flaticondotcom;
+        int icon =
+                fixes >= GPSScanner.MIN_SAT_USED_IN_FIX
+                ? R.drawable.ic_gps_receiving_flaticondotcom
+                : R.drawable.ic_gps_no_signal_flaticondotcom;
         ((ImageView) mRootView.findViewById(R.id.fix_indicator)).setImageResource(icon);
     }
 
@@ -542,8 +524,6 @@ public class MapFragment extends android.support.v4.app.Fragment
 
         ObservedLocationsReceiver observer = ObservedLocationsReceiver.getInstance();
         observer.setMapActivity(this);
-
-        dimToolbar();
 
         mapNetworkConnectionChanged();
 
@@ -614,7 +594,10 @@ public class MapFragment extends android.support.v4.app.Fragment
         BitmapPool.getInstance().clearBitmapPool();
     }
 
+
+    @SuppressWarnings("unused")
     public void formatTextView(int textViewId, int stringId, Object... args) {
+        // This is called from MainDrawerActivity::updateNumberDisplay
         String str = getResources().getString(stringId);
         formatTextView(textViewId, str, args);
     }

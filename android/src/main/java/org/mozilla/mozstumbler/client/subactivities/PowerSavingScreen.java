@@ -98,10 +98,8 @@ public class PowerSavingScreen extends ActionBarActivity {
 
     private void resetScanningToReflectChanges() {
         final MainApp app = ((MainApp) getApplication());
-        if (app.isScanningOrPaused()) {
-            app.stopScanning();
-            app.startScanning();
-        }
+
+        app.restartScanning();
     }
 
     private void setupLowBatterySpinner() {

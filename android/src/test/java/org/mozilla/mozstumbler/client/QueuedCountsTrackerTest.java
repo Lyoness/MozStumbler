@@ -30,11 +30,6 @@ import static org.mockito.Mockito.spy;
 @RunWith(RobolectricTestRunner.class)
 public class QueuedCountsTrackerTest {
 
-    public class StorageTracker implements DataStorageManager.StorageIsEmptyTracker {
-        public void notifyStorageStateEmpty(boolean isEmpty) {
-        }
-    }
-
     @Before
     public void setup() {
         DataStorageManager.sInstance = null;
@@ -57,15 +52,13 @@ public class QueuedCountsTrackerTest {
 
         Context ctx = Robolectric.application;
 
-        StorageTracker tracker = new StorageTracker();
-
         long maxBytes = 20000;
         int maxWeeks = 10;
 
         MockSystemClock clock = new MockSystemClock();
         ServiceLocator.getInstance().putService(ISystemClock.class, clock);
 
-        ClientDataStorageManager.createGlobalInstance(ctx, tracker, maxBytes, maxWeeks);
+        ClientDataStorageManager.createGlobalInstance(ctx, maxBytes, maxWeeks);
         QueuedCountsTracker qct = QueuedCountsTracker.getInstance();
         assertNotNull(DataStorageManager.getInstance());
 
@@ -93,7 +86,7 @@ public class QueuedCountsTrackerTest {
         QueuedCountsTracker.QueuedCounts qc2 = qct.getQueuedCounts();
 
         // These should be the same object because we haven't pushed the clock forward.
-        assertEquals(23, qc.mBytes);
+        assertEquals(23, qc2.mBytes);
 
         clock.setCurrentTime(999999);
         QueuedCountsTracker.QueuedCounts qc3 = qct.getQueuedCounts();

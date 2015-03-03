@@ -5,6 +5,8 @@
 package org.mozilla.mozstumbler.service.stumblerthread.datahandling;
 
 import android.content.Context;
+import android.content.Intent;
+import android.support.v4.content.LocalBroadcastManager;
 
 import org.mozilla.mozstumbler.service.AppGlobals;
 import org.mozilla.mozstumbler.service.core.logging.ClientLog;
@@ -64,18 +66,21 @@ public class DataStorageManager {
     private final long mMaxBytesDiskStorage;
     // Set to the default value specified above.
     private final int mMaxWeeksStored;
-    private final StorageIsEmptyTracker mTracker;
     private final PersistedStats mPersistedOnDiskUploadStats;
     protected ReportBatch mCurrentReportsSendBuffer;
     protected ReportFileList mFileList;
     private ReportBatchIterator mReportBatchIterator;
     private Timer mFlushMemoryBuffersToDiskTimer;
 
-    DataStorageManager(Context c, StorageIsEmptyTracker tracker,
+    private final Context mAppContext;
+    public static final String ACTION_BASE = AppGlobals.ACTION_NAMESPACE + ".DataStorageManager.";
+    public static final String ACTION_NOTIFY_STORAGE_EMPTY = ACTION_BASE + ".STORAGE_EMPTY";
+
+    DataStorageManager(Context c,
                        long maxBytesStoredOnDisk, int maxWeeksDataStored) {
+        mAppContext = c.getApplicationContext();
         mMaxBytesDiskStorage = maxBytesStoredOnDisk;
         mMaxWeeksStored = maxWeeksDataStored;
-        mTracker = tracker;
         final String baseDir = getStorageDir(c);
         mReportsDir = new File(baseDir + "/reports");
         if (!mReportsDir.exists()) {
@@ -111,15 +116,15 @@ public class DataStorageManager {
         return dir.getPath();
     }
 
-    public static synchronized void createGlobalInstance(Context context, StorageIsEmptyTracker tracker) {
-        DataStorageManager.createGlobalInstance(context, tracker,
+    public static synchronized void createGlobalInstance(Context context) {
+        DataStorageManager.createGlobalInstance(context,
                 DEFAULT_MAX_BYTES_STORED_ON_DISK, DEFAULT_MAX_WEEKS_DATA_ON_DISK);
     }
 
-    public static synchronized DataStorageManager createGlobalInstance(Context context, StorageIsEmptyTracker tracker,
+    public static synchronized DataStorageManager createGlobalInstance(Context context,
                                                                        long maxBytesStoredOnDisk, int maxWeeksDataStored) {
         if (sInstance == null) {
-            sInstance = new DataStorageManager(context, tracker, maxBytesStoredOnDisk, maxWeeksDataStored);
+            sInstance = new DataStorageManager(context, maxBytesStoredOnDisk, maxWeeksDataStored);
         }
         return sInstance;
     }
@@ -326,7 +331,10 @@ public class DataStorageManager {
     }
 
     public synchronized void insert(String report, int wifiCount, int cellCount) throws IOException {
-        notifyStorageIsEmpty(false);
+        Intent i = new Intent(ACTION_NOTIFY_STORAGE_EMPTY);
+        i.putExtra("isEmpty", false);
+        LocalBroadcastManager.getInstance(mAppContext).sendBroadcast(i);
+
 
         if (mFlushMemoryBuffersToDiskTimer != null) {
             mFlushMemoryBuffersToDiskTimer.cancel();
@@ -389,21 +397,10 @@ public class DataStorageManager {
         mFileList.update(mReportsDir);
     }
 
-    private void notifyStorageIsEmpty(boolean isEmpty) {
-        if (mTracker != null) {
-            mTracker.notifyStorageStateEmpty(isEmpty);
-        }
-    }
-
     public synchronized void incrementSyncStats(long bytesSent, long reports, long cells, long wifis) throws IOException {
         mPersistedOnDiskUploadStats.incrementSyncStats(bytesSent, reports, cells, wifis);
 
     }
-
-    public interface StorageIsEmptyTracker {
-        public void notifyStorageStateEmpty(boolean isEmpty);
-    }
-
 
     protected static class ReportFileList {
         File[] mFiles;

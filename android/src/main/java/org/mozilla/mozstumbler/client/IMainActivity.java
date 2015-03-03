@@ -5,9 +5,6 @@
 package org.mozilla.mozstumbler.client;
 
 public interface IMainActivity {
-    // Thread-safe way to update the main UI.
-    public void updateUiOnMainThread(boolean updateMetrics);
-
     // Call from main thread only
     public void setUploadState(boolean isUploadingObservations);
 
@@ -18,6 +15,16 @@ public interface IMainActivity {
     public void isPausedDueToNoMotion(boolean isPaused);
 
     // Call from main thread only
+    // unclear what this does
     public void stop();
+
+    public void startStumblerService();
+
+    public void stopStumblerService();
+
+    public void toggleStumblerService();
+
+    public void restartStumblerService();
+
 }
 

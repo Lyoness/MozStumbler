@@ -94,7 +94,7 @@ public class UploadAlarmReceiver extends BroadcastReceiver {
             }
             boolean isRepeating = intent.getBooleanExtra(EXTRA_IS_REPEATING, true);
             if (DataStorageManager.getInstance() == null) {
-                DataStorageManager.createGlobalInstance(this, null);
+                DataStorageManager.createGlobalInstance(this);
             }
             upload(isRepeating);
         }

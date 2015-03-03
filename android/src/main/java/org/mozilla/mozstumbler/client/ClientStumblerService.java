@@ -5,17 +5,17 @@
 package org.mozilla.mozstumbler.client;
 
 import android.content.Intent;
-import android.os.Binder;
-import android.os.IBinder;
-import android.os.Looper;
 import android.support.v4.content.LocalBroadcastManager;
-import android.util.Log;
 
 import org.mozilla.mozstumbler.service.AppGlobals;
 import org.mozilla.mozstumbler.service.stumblerthread.StumblerService;
 import org.mozilla.mozstumbler.service.stumblerthread.datahandling.ClientDataStorageManager;
+import org.mozilla.mozstumbler.service.uploadthread.UploadAlarmReceiver;
 import org.mozilla.mozstumbler.service.utils.BatteryCheckReceiver;
 import org.mozilla.mozstumbler.service.utils.BatteryCheckReceiver.BatteryCheckCallback;
+import org.mozilla.mozstumbler.svclocator.ServiceLocator;
+import org.mozilla.mozstumbler.svclocator.services.ISystemClock;
+import org.mozilla.mozstumbler.svclocator.services.log.ILogger;
 import org.mozilla.mozstumbler.svclocator.services.log.LoggerUtil;
 
 // Used as a bound service (with foreground priority) in Mozilla Stumbler, a.k.a. active scanning mode.
@@ -24,7 +24,28 @@ import org.mozilla.mozstumbler.svclocator.services.log.LoggerUtil;
 // -- Binding functions are commented in this class as being unused in the stand-alone service mode.
 public class ClientStumblerService extends StumblerService {
     private static final String LOG_TAG = LoggerUtil.makeLogTag(StumblerService.class);
-    private final IBinder mBinder = new StumblerBinder();
+    ILogger Log = (ILogger) ServiceLocator.getInstance().getService(ILogger.class);
+    ISystemClock clock = (ISystemClock) ServiceLocator.getInstance().getService(ISystemClock.class);
+
+    private static final String ACTION_BASE = AppGlobals.ACTION_NAMESPACE + ".CLIENT_SVC";
+
+    // These two actions are used to request the service to start or stop gracefully
+    public static final String ACTION_ACTIVE_SCANNING_START_REQUEST = ACTION_BASE + ".REQUEST_START";
+    public static final String ACTION_ACTIVE_SCANNING_STOP_REQUEST = ACTION_BASE + ".REQUEST_STOP";
+    public static final String ACTION_ACTIVE_SCANNING_TOGGLE_REQUEST = ACTION_BASE + ".REQUEST_TOGGLE";
+    public static final String ACTION_ACTIVE_SCANNING_RESTART_REQUEST = ACTION_BASE + ".REQUEST_RESTART";
+
+    // These two intents are broadcast only *after* the service has started or stopped
+    // scanning.
+    public static final String ACTION_ACTIVE_SCANNING_STARTED = ACTION_BASE + ".ACTIVE_SCANNING_STARTED";
+    public static final String ACTION_ACTIVE_SCANNING_STOPPED = ACTION_BASE + ".ACTIVE_SCANNING_STOPPED";
+
+    public final long MAX_BYTES_DISK_STORAGE = 1000 * 1000 * 20; // 20MB for Mozilla Stumbler by default, is ok?
+    public final int MAX_WEEKS_OLD_STORED = 4;
+
+    private BatteryCheckReceiver mBatteryChecker;
+
+
     private final BatteryCheckCallback mBatteryCheckCallback = new BatteryCheckCallback() {
         private boolean waitForBatteryOkBeforeSendingNotification;
 
@@ -41,35 +62,46 @@ public class ClientStumblerService extends StumblerService {
             }
         }
     };
-    private BatteryCheckReceiver mBatteryChecker;
 
-    // Service binding is not used in stand-alone passive mode.
+
+
     @Override
-    public IBinder onBind(Intent intent) {
-        if (AppGlobals.isDebug) {
-            Log.d(LOG_TAG, "onBind");
-        }
-        return mBinder;
+    protected void init() {
+        ClientDataStorageManager.createGlobalInstance(this.getApplicationContext(),
+                MAX_BYTES_DISK_STORAGE,
+                MAX_WEEKS_OLD_STORED);
+        super.init();
     }
 
-    // Service binding is not used in stand-alone passive mode.
     @Override
-    public boolean onUnbind(Intent intent) {
-        if (AppGlobals.isDebug) {
-            Log.d(LOG_TAG, "onUnbind");
+    public void onHandleIntent(Intent intent) {
+        // Do init() in all cases, there is no cost, whereas it is easy to add code that depends on this.
+        init();
+
+        if (intent == null) {
+            return;
         }
-        return true;
+
+        boolean hasFilesWaiting = !ClientDataStorageManager.getInstance().isDirEmpty();
+        if (AppGlobals.isDebug) {
+            Log.d(LOG_TAG, "Files waiting:" + hasFilesWaiting);
+        }
+        if (hasFilesWaiting) {
+            UploadAlarmReceiver.scheduleAlarm(this,
+                    FREQUENCY_IN_SEC_OF_UPLOAD_IN_ACTIVE_MODE,
+                    false /* no repeat*/);
+        }
+
+        if (intent.getAction().equals(ACTION_ACTIVE_SCANNING_START_REQUEST)) {
+            startScanning();
+        } else if (intent.getAction().equals(ACTION_ACTIVE_SCANNING_STOP_REQUEST)) {
+            stopScanning();
+        }
+        // TODO: add toggle, restart and default action handlers here
+
     }
 
-    // Service binding is not used in stand-alone passive mode.
-    @Override
-    public void onRebind(Intent intent) {
-        if (AppGlobals.isDebug) {
-            Log.d(LOG_TAG, "onRebind");
-        }
-    }
-
-    public void stopScanning() {
+    private void stopScanning() {
         if (mScanManager.stopScanning()) {
             mReporter.flush();
         }
@@ -77,6 +109,12 @@ public class ClientStumblerService extends StumblerService {
         if (mBatteryChecker != null) {
             mBatteryChecker.stop();
         }
+
+        // notify everyone that scanning has started
+        LocalBroadcastManager
+                .getInstance(this.getApplicationContext())
+                .sendBroadcast(new Intent(ACTION_ACTIVE_SCANNING_STOPPED));
+        Log.i(LOG_TAG, "Stumbling has stopped!!!");
     }
 
     @Override
@@ -88,28 +126,15 @@ public class ClientStumblerService extends StumblerService {
         }
 
         mBatteryChecker.start();
+
+        // notify everyone that scanning has started
+        LocalBroadcastManager
+                .getInstance(this.getApplicationContext())
+                .sendBroadcast(new Intent(ACTION_ACTIVE_SCANNING_STARTED));
+
+        Log.i(LOG_TAG, "Stumbling has started!!!");
     }
 
-    // Service binding is not used in stand-alone passive mode.
-    public final class StumblerBinder extends Binder {
-        // Only to be used in the non-standalone, non-passive case (Mozilla Stumbler). In the passive standalone usage
-        // of this class, everything, including initialization, is done on its dedicated thread
-        // This function is written to enforce the contract of its usage, and will throw if called from the wrong thread
-        public ClientStumblerService getServiceAndInitialize(Thread callingThread,
-                                                             long maxBytesOnDisk,
-                                                             int maxWeeksOld) {
-            if (Looper.getMainLooper().getThread() != callingThread) {
-                throw new RuntimeException("Only call from main thread");
-            }
-            ClientDataStorageManager.createGlobalInstance(ClientStumblerService.this,
-                    ClientStumblerService.this, maxBytesOnDisk, maxWeeksOld);
-            init();
-            return ClientStumblerService.this;
-        }
 
-        public ClientStumblerService getService() {
-            return ClientStumblerService.this;
-        }
-    }
 }
 
