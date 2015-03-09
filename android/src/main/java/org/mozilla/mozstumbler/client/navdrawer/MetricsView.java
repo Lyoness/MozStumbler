@@ -38,7 +38,6 @@ import org.mozilla.mozstumbler.service.uploadthread.AsyncUploadParam;
 import org.mozilla.mozstumbler.service.uploadthread.AsyncUploader;
 import org.mozilla.mozstumbler.svclocator.services.log.LoggerUtil;
 
-import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.Properties;
 
@@ -84,16 +83,19 @@ public class MetricsView {
                 new IntentFilter(PersistedStats.ACTION_PERSISTENT_SYNC_STATUS_UPDATED));
 
         mOnMapShowMLS = (CheckBox) mView.findViewById(R.id.checkBox_show_mls);
-        mOnMapShowMLS.setVisibility(View.GONE);
-        mOnMapShowMLS.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
-                ClientPrefs.getInstance(mView.getContext()).setOnMapShowMLS(mOnMapShowMLS.isChecked());
-                if (mMapLayerToggleListener.get() != null) {
-                    mMapLayerToggleListener.get().setShowMLS(mOnMapShowMLS.isChecked());
+
+        if (mOnMapShowMLS != null) {
+            mOnMapShowMLS.setVisibility(View.GONE);
+            mOnMapShowMLS.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+                @Override
+                public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                    ClientPrefs.getInstance(mView.getContext()).setOnMapShowMLS(mOnMapShowMLS.isChecked());
+                    if (mMapLayerToggleListener.get() != null) {
+                        mMapLayerToggleListener.get().setShowMLS(mOnMapShowMLS.isChecked());
+                    }
                 }
-            }
-        });
+            });
+        }
 
         mLastUpdateTimeView = (TextView) mView.findViewById(R.id.last_upload_time_value);
         mAllTimeObservationsSentView = (TextView) mView.findViewById(R.id.observations_sent_value);
@@ -103,54 +105,69 @@ public class MetricsView {
         mThisSessionUniqueAPsView = (TextView) mView.findViewById(R.id.wifis_unique_value);
 
         mUploadButton = (ImageButton) mView.findViewById(R.id.upload_observations_button);
-        mUploadButton.setEnabled(false);
-        mUploadButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (!mHasQueuedObservations) {
-                    return;
+        if (mUploadButton != null) {
+            mUploadButton.setEnabled(false);
+            mUploadButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (!mHasQueuedObservations) {
+                        return;
+                    }
+
+                    AsyncUploader uploader = new AsyncUploader();
+                    AsyncUploadParam param = new AsyncUploadParam(false /* useWifiOnly */,
+                            Prefs.getInstance(mView.getContext()).getNickname(),
+                            Prefs.getInstance(mView.getContext()).getEmail());
+                    uploader.execute(param);
+
+                    setUploadButtonToSyncing(true);
                 }
+            });
+        }
 
-                AsyncUploader uploader = new AsyncUploader();
-                AsyncUploadParam param = new AsyncUploadParam(false /* useWifiOnly */,
-                        Prefs.getInstance(mView.getContext()).getNickname(),
-                        Prefs.getInstance(mView.getContext()).getEmail());
-                uploader.execute(param);
-
-                setUploadButtonToSyncing(true);
-            }
-        });
 
         mSettingsButton = (ImageButton) mView.findViewById(R.id.metrics_settings_button);
-        mSettingsButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Activity mainDrawer = (Activity) v.getContext();
-                assert (mainDrawer instanceof MainDrawerActivity);
-                mainDrawer.startActivityForResult(new Intent(v.getContext(), PreferencesScreen.class), 1);
-            }
-        });
+        if (mSettingsButton != null) {
+            mSettingsButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Activity mainDrawer = (Activity) v.getContext();
+                    assert (mainDrawer instanceof MainDrawerActivity);
+                    mainDrawer.startActivityForResult(new Intent(v.getContext(), PreferencesScreen.class), 1);
+                }
+            });
+        }
 
         // Remove click listener of the Drawer buttons container to avoid to get it triggered on the Map view
         mButtonsContainer = (RelativeLayout) mView.findViewById(R.id.metrics_buttons_container);
-        mButtonsContainer.setOnClickListener(null);
+        if (mButtonsContainer != null) {
+            mButtonsContainer.setOnClickListener(null);
+        }
 
-        mHandler.postDelayed(mUpdateLastUploadedLabel, FREQ_UPDATE_UPLOADTIME);
+        if (mHandler != null) {
+            mHandler.postDelayed(mUpdateLastUploadedLabel, FREQ_UPDATE_UPLOADTIME);
+        }
 
         Button showPowerButton = (Button) mView.findViewById(R.id.button_change_power_setting);
-        if (Build.VERSION.SDK_INT >= 16) {
-            Drawable clone = showPowerButton.getBackground().getConstantState().newDrawable();
-            clone.setColorFilter(new LightingColorFilter(0xFFFFFFFF, 0xFF106E99));
-            showPowerButton.setBackground(clone);
-        }
-        showPowerButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Activity mainDrawer = (Activity) v.getContext();
-                assert (mainDrawer instanceof MainDrawerActivity);
-                mainDrawer.startActivityForResult(new Intent(v.getContext(), PowerSavingScreen.class), 1);
+
+        if (showPowerButton != null) {
+            if (Build.VERSION.SDK_INT >= 16) {
+                Drawable clone = showPowerButton.getBackground().getConstantState().newDrawable();
+                clone.setColorFilter(new LightingColorFilter(0xFFFFFFFF, 0xFF106E99));
+                showPowerButton.setBackground(clone);
             }
-        });
+        }
+
+        if (showPowerButton != null) {
+            showPowerButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Activity mainDrawer = (Activity) v.getContext();
+                    assert (mainDrawer instanceof MainDrawerActivity);
+                    mainDrawer.startActivityForResult(new Intent(v.getContext(), PowerSavingScreen.class), 1);
+                }
+            });
+        }
     }
 
     void updatePowerSavingsLabels() {
@@ -185,7 +202,7 @@ public class MetricsView {
         }
     }
 
-    private void setUploadButtonToSyncing(boolean isSyncing) {
+    void setUploadButtonToSyncing(boolean isSyncing) {
         if (isSyncing) {
             mUploadButton.setImageResource(android.R.drawable.ic_popup_sync);
         } else {
@@ -210,26 +227,28 @@ public class MetricsView {
     }
 
     public void update() {
+        updateShowMLS();
+
+        updatePowerSavingsLabels();
+        updateQueuedStats();
+        updateSentStats();
+        updateThisSessionStats();
+        setUploadButtonToSyncing(AsyncUploader.isUploading.get());
+    }
+
+    void updateShowMLS() {
         if (ClientPrefs.getInstance(mView.getContext()).isOptionEnabledToShowMLSOnMap()) {
             mOnMapShowMLS.setVisibility(View.VISIBLE);
         } else {
             mOnMapShowMLS.setVisibility(View.GONE);
         }
-
-        updatePowerSavingsLabels();
-
-        updateQueuedStats();
-        updateSentStats();
-        updateThisSessionStats();
-
-        setUploadButtonToSyncing(AsyncUploader.isUploading.get());
     }
 
     public void onOpened() {
         update();
     }
 
-    private void updateThisSessionStats() {
+    void updateThisSessionStats() {
         mThisSessionUniqueCellsView.setText(String.valueOf(sThisSessionUniqueCellCount));
         mThisSessionUniqueAPsView.setText(String.valueOf(sThisSessionUniqueWifiCount));
 
@@ -257,13 +276,19 @@ public class MetricsView {
         if (mLastUploadTime > 0) {
             value = DateTimeUtils.prettyPrintTimeDiff(mLastUploadTime, context.getResources());
         }
-        mLastUpdateTimeView.setText(value);
+        if (mLastUpdateTimeView != null) {
+            mLastUpdateTimeView.setText(value);
+        }
 
+        sendLastUploadedTime();
+    }
+
+    void sendLastUploadedTime() {
         NotificationUtil nm = new NotificationUtil(mView.getContext());
         nm.updateLastUploadedLabel(mLastUploadTime);
     }
 
-    private void updateSentStats() {
+    void updateSentStats() {
         if (mPersistedStats != null) {
             long lastUpload = Long.parseLong(mPersistedStats
                     .getProperty(DataStorageContract.Stats.KEY_LAST_UPLOAD_TIME, "0"));
@@ -282,7 +307,7 @@ public class MetricsView {
         updateLastUploadedLabel();
     }
 
-    private void updateQueuedStats() {
+    void updateQueuedStats() {
         QueuedCountsTracker.QueuedCounts q = QueuedCountsTracker.getInstance().getQueuedCounts();
         String val = String.format(mObservationAndSize, q.mReportCount, formatKb(q.mBytes));
         mQueuedObservationsView.setText(val);
