@@ -55,6 +55,8 @@ import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.mozilla.mozstumbler.service.stumblerthread.scanners.ScanManager.*;
+
 @ReportsCrashes(
         formKey = "",
         httpMethod = HttpSender.Method.PUT,
@@ -65,7 +67,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class MainApp extends Application
         implements AsyncUploader.AsyncUploaderListener {
     public static final AtomicBoolean isUploading = new AtomicBoolean();
-    public static final String INTENT_TURN_OFF = "org.mozilla.mozstumbler.turnMeOff";
+
+    public static final String NOTIFICATION_STOP = "org.mozilla.mozstumbler.notification.stop";
+
     public static final String ACTION_BASE = AppGlobals.ACTION_NAMESPACE + ".MainApp.";
     public static final String ACTION_LOW_BATTERY = ACTION_BASE + ".LOW_BATTERY";
     private static boolean sHasBootedOnce;
@@ -77,10 +81,38 @@ public class MainApp extends Application
     private ServiceBroadcastReceiver mReceiver;
     private WeakReference<IMainActivity> mMainActivity = new WeakReference<IMainActivity>(null);
     private boolean mIsScanningPausedDueToNoMotion;
+
+    // These track the state of the currently running service
+    private ScanManager.ScannerState scannerState = ScannerState.STOPPED;
+
+
+    boolean isStumblerStopped() {
+        return scannerState == ScannerState.STOPPED;
+    }
+
+    private final BroadcastReceiver scannerStateReceiver = new BroadcastReceiver() {
+        // This captures state change from the ScanManager
+        @Override
+        public void onReceive(Context context, Intent intent) {
+
+            if (intent == null) {
+                return;
+            }
+            ScanManager.ScannerState tmpScannerState = ScanManager.ScannerState.fromString(intent.getAction());
+
+            if (tmpScannerState != null) {
+                scannerState = tmpScannerState;
+            }
+
+            Log.i(LOG_TAG, "Received and updated MainApp scannerState = " + scannerState);
+        };
+    };
+
+
     private final BroadcastReceiver mReceivePausedOrUnpausedState = new BroadcastReceiver() {
         public void onReceive(Context context, Intent intent) {
             mIsScanningPausedDueToNoMotion =
-                intent.getAction().equals(ScanManager.ACTION_SCAN_PAUSED_USER_MOTIONLESS);
+                intent.getAction().equals(ACTION_SCAN_PAUSED_USER_MOTIONLESS);
 
             new Handler(context.getMainLooper()).post(new Runnable() {
                 public void run() {
@@ -199,6 +231,14 @@ public class MainApp extends Application
             checkSimulationPermission();
         }
 
+        LocalBroadcastManager lbm = LocalBroadcastManager.getInstance(this);
+        lbm.registerReceiver(mReceivePausedOrUnpausedState, new IntentFilter(ACTION_SCAN_UNPAUSED_USER_MOVED));
+        lbm.registerReceiver(mReceivePausedOrUnpausedState, new IntentFilter(ACTION_SCAN_PAUSED_USER_MOTIONLESS));
+
+        lbm.registerReceiver(scannerStateReceiver, new IntentFilter(ScannerState.STARTED.toString()));
+        lbm.registerReceiver(scannerStateReceiver, new IntentFilter(ScannerState.STARTED_BUT_PAUSED_MOTIONLESS.toString()));
+        lbm.registerReceiver(scannerStateReceiver, new IntentFilter(ScannerState.STOPPED.toString()));
+
         NetworkInfo.createGlobalInstance(this);
         LogActivity.LogMessageReceiver.createGlobalInstance(this);
         // This will create, and register the receiver
@@ -208,6 +248,8 @@ public class MainApp extends Application
 
         mReceiver = new ServiceBroadcastReceiver();
         mReceiver.register();
+
+        // Start the stumbling service last after all the intent listeners have been registered.
 
         mConnection = new ServiceConnection() {
             public void onServiceConnected(ComponentName className, IBinder binder) {
@@ -234,9 +276,7 @@ public class MainApp extends Application
         Intent intent = new Intent(this, ClientStumblerService.class);
         bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
 
-        LocalBroadcastManager lbm = LocalBroadcastManager.getInstance(this);
-        lbm.registerReceiver(mReceivePausedOrUnpausedState, new IntentFilter(ScanManager.ACTION_SCAN_UNPAUSED_USER_MOVED));
-        lbm.registerReceiver(mReceivePausedOrUnpausedState, new IntentFilter(ScanManager.ACTION_SCAN_PAUSED_USER_MOTIONLESS));
+
     }
 
     private void checkSimulationPermission() {
@@ -272,8 +312,12 @@ public class MainApp extends Application
         }
         NotificationUtil nm = new NotificationUtil(this.getApplicationContext());
         Notification notification = nm.buildNotification(getString(R.string.stop_scanning));
+
+        // TODO: change this to an intent broadcast
         mStumblerService.startForeground(NotificationUtil.NOTIFICATION_ID, notification);
+        // TODO: change this to an intent broadcast
         mStumblerService.startScanning();
+
         if (mMainActivity.get() != null) {
             mMainActivity.get().updateUiOnMainThread(false);
         }
@@ -286,7 +330,10 @@ public class MainApp extends Application
 
         mIsScanningPausedDueToNoMotion = false;
 
+        // TODO: change this to an intent broadcast
         mStumblerService.stopScanning();
+
+        // TODO: change this to an intent broadcast
         mStumblerService.stopForeground(true);
 
         if (mMainActivity.get() != null) {
@@ -329,10 +376,8 @@ public class MainApp extends Application
     }
 
     public boolean isScanningOrPaused() {
-        if (mStumblerService == null) {
-            return false;
-        }
-        return !mStumblerService.isStopped();
+         return scannerState == ScannerState.STARTED_BUT_PAUSED_MOTIONLESS ||
+                 scannerState == ScannerState.STARTED;
     }
 
     public void showDeveloperDialog(Activity activity) {
@@ -357,6 +402,7 @@ public class MainApp extends Application
         super.onLowMemory();
 
         if (mStumblerService != null) {
+            // TODO: change this to an intent broadcast
             mStumblerService.handleLowMemoryNotification();
         }
     }
@@ -367,6 +413,7 @@ public class MainApp extends Application
         super.onTrimMemory(level);
 
         if (mStumblerService != null) {
+            // TODO: change this to an intent broadcast
             mStumblerService.handleLowMemoryNotification();
         }
     }
@@ -390,6 +437,10 @@ public class MainApp extends Application
         return mIsScanningPausedDueToNoMotion;
     }
 
+    public boolean isStopped() {
+        return scannerState == ScannerState.STOPPED;
+    }
+
     private class ServiceBroadcastReceiver extends BroadcastReceiver {
         private boolean mReceiverIsRegistered;
 
@@ -405,7 +456,7 @@ public class MainApp extends Application
                 LocalBroadcastManager.getInstance(getApplicationContext()).registerReceiver(this, intentFilter);
 
                 // This can't be a local broadcast as it comes from notification menu
-                getApplicationContext().registerReceiver(this, new IntentFilter(INTENT_TURN_OFF));
+                getApplicationContext().registerReceiver(this, new IntentFilter(NOTIFICATION_STOP));
             }
         }
 
@@ -419,8 +470,8 @@ public class MainApp extends Application
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            if (action.equals(INTENT_TURN_OFF)) {
-                Log.d(LOG_TAG, "INTENT_TURN_OFF");
+            if (action.equals(NOTIFICATION_STOP)) {
+                Log.d(LOG_TAG, "NOTIFICATION_STOP");
                 stopScanning();
             } else if (action.equals(ACTION_LOW_BATTERY)) {
                 AppGlobals.guiLogInfo("Stop, low battery detected.");
