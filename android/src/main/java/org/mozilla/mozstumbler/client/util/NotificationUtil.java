@@ -31,16 +31,17 @@ public class NotificationUtil {
     private static long sUploadTime, sDisplayTime, sLastUpdateTime;
     private static boolean sIsPaused;
     private final Context mContext;
+    private ISystemClock clock = (ISystemClock) ServiceLocator.getInstance().getService(ISystemClock.class);
 
     public NotificationUtil(Context context) {
         mContext = context;
     }
 
     private Notification build() {
-        PendingIntent turnOffIntent = PendingIntent.getBroadcast(mContext,
-                                                                0,
-                                                                new Intent(MainApp.INTENT_TURN_OFF),
-                                                                0);
+        PendingIntent notificationStopIntent = PendingIntent.getBroadcast(mContext,
+                                                        0,
+                                                        new Intent(MainApp.NOTIFICATION_STOP),
+                                                        0);
 
         Intent notificationIntent = new Intent(mContext, MainDrawerActivity.class);
         notificationIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_FROM_BACKGROUND);
@@ -80,7 +81,7 @@ public class NotificationUtil {
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
                 .setStyle(new NotificationCompat.BigTextStyle()
                         .bigText(metrics + "\n" + uploadLine))
-                .addAction(R.drawable.ic_action_cancel, sStopTitle, turnOffIntent)
+                .addAction(R.drawable.ic_action_cancel, sStopTitle, notificationStopIntent)
                 .build();
     }
 
@@ -100,7 +101,7 @@ public class NotificationUtil {
     public Notification buildNotification(String stopTitle) {
         sStopTitle = stopTitle;
         sIsPaused = false;
-        sDisplayTime = System.currentTimeMillis();
+        sDisplayTime = clock.currentTimeMillis();
         return build();
     }
 
