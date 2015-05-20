@@ -21,7 +21,7 @@ import org.mozilla.mozstumbler.svclocator.services.ISystemClock;
 import org.mozilla.mozstumbler.svclocator.services.MockSystemClock;
 import org.mozilla.mozstumbler.svclocator.services.log.LoggerUtil;
 import org.robolectric.Robolectric;
-import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RobolectricGradleTestRunner;
 import org.robolectric.annotation.Config;
 
 import java.util.LinkedList;
@@ -33,7 +33,7 @@ import static junit.framework.Assert.assertTrue;
 import static org.mozilla.mozstumbler.service.stumblerthread.ReporterTest.getLocationIntent;
 
 @Config(emulateSdk = 18)
-@RunWith(RobolectricTestRunner.class)
+@RunWith(RobolectricGradleTestRunner.class)
 public class LocationChangeSensorTest {
 
     private static final String LOG_TAG = LoggerUtil.makeLogTag(LocationChangeSensorTest.class);

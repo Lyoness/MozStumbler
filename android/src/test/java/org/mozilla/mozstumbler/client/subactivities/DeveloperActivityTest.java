@@ -14,7 +14,7 @@ import org.mozilla.mozstumbler.service.stumblerthread.datahandling.ClientDataSto
 import org.mozilla.mozstumbler.service.stumblerthread.datahandling.DataStorageManager;
 import org.mozilla.mozstumbler.svclocator.services.log.LoggerUtil;
 import org.robolectric.Robolectric;
-import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RobolectricGradleTestRunner;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowEnvironment;
 import org.robolectric.shadows.ShadowToast;
@@ -31,7 +31,7 @@ import static org.mozilla.mozstumbler.client.subactivities.DeveloperActivity.Dev
 import static org.robolectric.util.FragmentTestUtil.startFragment;
 
 @Config(emulateSdk = 18)
-@RunWith(RobolectricTestRunner.class)
+@RunWith(RobolectricGradleTestRunner.class)
 public class DeveloperActivityTest {
 
     private static final String LOG_TAG = LoggerUtil.makeLogTag(DeveloperActivityTest.class);

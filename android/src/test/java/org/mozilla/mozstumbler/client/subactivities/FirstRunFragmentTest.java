@@ -14,7 +14,7 @@ import org.mozilla.mozstumbler.svclocator.ServiceLocator;
 import org.mozilla.mozstumbler.svclocator.services.log.UnittestLogger;
 import org.mozilla.mozstumbler.svclocator.services.log.ILogger;
 import org.mozilla.mozstumbler.svclocator.services.log.LoggerUtil;
-import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RobolectricGradleTestRunner;
 import org.robolectric.annotation.Config;
 
 import static org.mockito.Mockito.doReturn;
@@ -24,7 +24,7 @@ import static org.robolectric.util.FragmentTestUtil.startFragment;
 
 @Config(emulateSdk = 18,
         shadows = {FirstRunDialogFragmentShadow.class})
-@RunWith(RobolectricTestRunner.class)
+@RunWith(RobolectricGradleTestRunner.class)
 public class FirstRunFragmentTest {
 
     private static ILogger Log = (ILogger) ServiceLocator.getInstance().getService(ILogger.class);

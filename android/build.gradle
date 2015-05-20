@@ -12,12 +12,10 @@ for (versionPart in [versionPatch, versionMinor, versionMajor]) {
 
 buildscript {
     repositories {
-        mavenCentral()
-        maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
+        jcenter()
     }
 
     dependencies {
-
         classpath 'com.android.tools.build:gradle:1.0.0'
         classpath 'com.jakewharton.sdkmanager:gradle-plugin:0.12.+'
         classpath 'com.github.jcandksolutions.gradle:android-unit-test:2.1.1'
@@ -29,8 +27,6 @@ apply plugin: 'com.android.application'
 
 repositories {
     jcenter()
-    maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
-    mavenCentral()
 }
 
 android {
@@ -202,8 +198,8 @@ dependencies {
     androidTestCompile 'junit:junit:4.10'
     testCompile        'junit:junit:4.10'
 
-    androidTestCompile 'org.robolectric:robolectric:2.4'
-    testCompile        'org.robolectric:robolectric:2.4'
+    androidTestCompile 'org.robolectric:robolectric:3.0-rc3'
+    testCompile        'org.robolectric:robolectric:3.0-rc3'
 
     androidTestCompile "org.mockito:mockito-core:1.+"
     testCompile        "org.mockito:mockito-core:1.+"

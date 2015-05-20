@@ -8,7 +8,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mozilla.mozstumbler.svclocator.services.log.LoggerUtil;
 import org.robolectric.Robolectric;
-import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RobolectricGradleTestRunner;
 import org.robolectric.annotation.Config;
 import org.robolectric.shadows.ShadowTextView;
 
@@ -18,7 +18,7 @@ import static junit.framework.Assert.assertTrue;
 import static org.mozilla.mozstumbler.client.subactivities.LogActivity.ConsoleView;
 
 @Config(emulateSdk = 18)
-@RunWith(RobolectricTestRunner.class)
+@RunWith(RobolectricGradleTestRunner.class)
 public class ClientLogActivityTest {
 
     private static final String LOG_TAG = LoggerUtil.makeLogTag(ClientLogActivityTest.class);

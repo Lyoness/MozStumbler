@@ -14,7 +14,7 @@ import org.mozilla.mozstumbler.service.Prefs;
 import org.mozilla.mozstumbler.service.stumblerthread.Reporter;
 import org.mozilla.mozstumbler.service.stumblerthread.scanners.cellscanner.CellInfo;
 import org.robolectric.Robolectric;
-import org.robolectric.RobolectricTestRunner;
+import org.robolectric.RobolectricGradleTestRunner;
 import org.robolectric.annotation.Config;
 
 import static junit.framework.Assert.assertEquals;
@@ -22,7 +22,7 @@ import static org.mozilla.mozstumbler.service.stumblerthread.ReporterTest.create
 import static org.mozilla.mozstumbler.service.stumblerthread.ReporterTest.createScanResult;
 
 @Config(emulateSdk = 18)
-@RunWith(RobolectricTestRunner.class)
+@RunWith(RobolectricGradleTestRunner.class)
 public class DataStorageManagerTest {
 
     private DataStorageManager dm;
