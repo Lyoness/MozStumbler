@@ -34,7 +34,10 @@ public class WifiScanner {
     public static final int STATUS_WIFI_DISABLED = -1;
 
     private static final String LOG_TAG = LoggerUtil.makeLogTag(WifiScanner.class);
-    private static final long WIFI_MIN_UPDATE_TIME = 4000; // milliseconds
+
+    private static final long DEFAULT_WIFI_MIN_UPDATE_TIME = 4000; // milliseconds
+    private final long WIFI_MIN_UPDATE_TIME;  // milliseconds
+
     private final Context mAppContext;
     private final WifiManagerProxy wifiManagerProxy;
     private boolean mStarted;
@@ -44,8 +47,13 @@ public class WifiScanner {
     private AtomicInteger mVisibleAPs = new AtomicInteger();
 
     public WifiScanner(Context appContext) {
+        this(appContext, DEFAULT_WIFI_MIN_UPDATE_TIME);
+    }
+
+    public WifiScanner(Context appContext, long wifiMinUpdateTime) {
         mAppContext = appContext;
         wifiManagerProxy = new WifiManagerProxy(mAppContext);
+        WIFI_MIN_UPDATE_TIME = wifiMinUpdateTime;
     }
 
     public static boolean shouldLog(ScanResult scanResult) {
