@@ -27,7 +27,7 @@ public class BaseWifiManagerProxy extends BroadcastReceiver {
     }
 
     public boolean isScanEnabled() {
-        WifiManager manager = getWifiManager();
+        WifiManager manager = _getWifiManager();
         boolean scanEnabled = manager.isWifiEnabled();
         if (Build.VERSION.SDK_INT >= 18) {
             scanEnabled |= manager.isScanAlwaysAvailable();
@@ -36,29 +36,18 @@ public class BaseWifiManagerProxy extends BroadcastReceiver {
     }
 
     public boolean runWifiScan() {
-        if (Prefs.getInstance(mAppContext).isSimulateStumble()) {
-
-            // This intent will signal the WifiScanner class to ask for new scan results
-            // by invoking getScanResults
-            Intent i = new Intent(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
-            onReceive(mAppContext, i);
-            return true;
-        } else {
-            return getWifiManager().startScan();
-        }
+        return _getWifiManager().startScan();
     }
 
     public List<ScanResult> getScanResults() {
-
-        WifiManager manager = getWifiManager();
+        WifiManager manager = _getWifiManager();
         if (manager == null) {
             return null;
         }
-        return getWifiManager().getScanResults();
-
+        return _getWifiManager().getScanResults();
     }
 
-    private WifiManager getWifiManager() {
+    private WifiManager _getWifiManager() {
         return (WifiManager) mAppContext.getSystemService(Context.WIFI_SERVICE);
     }
 
@@ -86,7 +75,7 @@ public class BaseWifiManagerProxy extends BroadcastReceiver {
     }
 
     public WifiManager.WifiLock createWifiLock() {
-        return getWifiManager().createWifiLock(WifiManager.WIFI_MODE_SCAN_ONLY, "MozStumbler");
+        return _getWifiManager().createWifiLock(WifiManager.WIFI_MODE_SCAN_ONLY, "MozStumbler");
     }
 
 }

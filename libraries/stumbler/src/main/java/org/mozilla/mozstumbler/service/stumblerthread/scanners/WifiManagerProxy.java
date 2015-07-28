@@ -30,13 +30,14 @@ public class WifiManagerProxy extends BaseWifiManagerProxy {
     @Override
     public boolean runWifiScan() {
         if (Prefs.getInstance(mAppContext).isSimulateStumble()) {
-
             // This intent will signal the WifiScanner class to ask for new scan results
             // by invoking getScanResults
             Intent i = new Intent(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
             onReceive(mAppContext, i);
             return true;
         }
+
+        // Fallback to baseclass behavior
         return super.runWifiScan();
     }
 
@@ -73,6 +74,4 @@ public class WifiManagerProxy extends BaseWifiManagerProxy {
             mAppContext.registerReceiver(this, i);
         }
     }
-
-
 }
