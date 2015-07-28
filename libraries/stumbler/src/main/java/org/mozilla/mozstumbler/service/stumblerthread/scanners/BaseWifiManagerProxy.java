@@ -11,7 +11,6 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 
-import org.mozilla.mozstumbler.service.Prefs;
 import org.mozilla.mozstumbler.svclocator.services.log.LoggerUtil;
 
 import java.util.List;
@@ -23,10 +22,10 @@ public class BaseWifiManagerProxy extends BroadcastReceiver {
     WifiScanner mWifiScanner;
 
     public BaseWifiManagerProxy(Context appContext) {
-        mAppContext = appContext;
+        mAppContext = appContext.getApplicationContext();
     }
 
-    public boolean isScanEnabled() {
+    public boolean isWifiScanEnabled() {
         WifiManager manager = _getWifiManager();
         boolean scanEnabled = manager.isWifiEnabled();
         if (Build.VERSION.SDK_INT >= 18) {
@@ -65,13 +64,7 @@ public class BaseWifiManagerProxy extends BroadcastReceiver {
     }
 
     public void onReceive(Context c, Intent intent) {
-        // this is the hook we need to call to send in fake
-        // Wifi signals.
-        // WifiScanner will expect and intent with
-        // action ==  WifiManager.SCAN_RESULTS_AVAILABLE_ACTION
-        // and the getScanResults() method will then be called to return a list of
-        // Wifi scans.
-        mWifiScanner.onProxyReceive(c, intent);
+        mWifiScanner.wifiScanCallback(c, intent);
     }
 
     public WifiManager.WifiLock createWifiLock() {

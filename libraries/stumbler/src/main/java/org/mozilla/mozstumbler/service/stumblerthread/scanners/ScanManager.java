@@ -160,7 +160,7 @@ public class ScanManager {
             return;
         }
 
-        mWifiScanner.start();
+        mWifiScanner.start(new LocationRequestConfig());
         mCellScanner.start();
 
         if (mFlushTimer != null) {
@@ -236,7 +236,8 @@ public class ScanManager {
         }
 
         mGPSScanner = new GPSScanner(mAppContext, this);
-        mWifiScanner = new WifiScanner(mAppContext);
+        mWifiScanner = new WifiScanner();
+        mWifiScanner.init(mAppContext);
         mCellScanner = new CellScanner(mAppContext);
 
         mGPSScanner.start(mStumblingMode);

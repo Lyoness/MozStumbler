@@ -1,12 +1,10 @@
 package org.mozilla.mozstumbler.service.stumblerthread.scanners;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
-import android.os.Build;
 
 import org.mozilla.mozstumbler.service.Prefs;
 import org.mozilla.mozstumbler.service.core.logging.ClientLog;
@@ -20,10 +18,10 @@ import java.util.List;
  This class provides an abstraction around android.net.wifi.WifiManager
  so that we can properly mock it out and simulate inbound intents.
  */
-public class WifiManagerProxy extends BaseWifiManagerProxy {
-    private static final String LOG_TAG = LoggerUtil.makeLogTag(WifiManagerProxy.class);
+public class SimulationWifiManagerProxy extends BaseWifiManagerProxy {
+    private static final String LOG_TAG = LoggerUtil.makeLogTag(SimulationWifiManagerProxy.class);
 
-    public WifiManagerProxy(Context appContext) {
+    public SimulationWifiManagerProxy(Context appContext) {
         super(appContext);
     }
 
