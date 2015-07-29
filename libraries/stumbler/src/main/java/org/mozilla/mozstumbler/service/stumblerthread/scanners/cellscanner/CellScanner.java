@@ -15,6 +15,7 @@ import android.support.v4.content.LocalBroadcastManager;
 import org.mozilla.mozstumbler.service.AppGlobals;
 import org.mozilla.mozstumbler.service.Prefs;
 import org.mozilla.mozstumbler.service.stumblerthread.Reporter;
+import org.mozilla.mozstumbler.service.stumblerthread.scanners.LocationRequest;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -30,18 +31,22 @@ public class CellScanner {
     public static final String ACTION_CELLS_SCANNED_ARG_CELLS = "cells";
     public static final String ACTION_CELLS_SCANNED_ARG_TIME = AppGlobals.ACTION_ARG_TIME;
 
-    private static final long CELL_MIN_UPDATE_TIME = 1000; // milliseconds
+    private final long CELL_MIN_UPDATE_TIME;
 
-    private final Context mAppContext;
+    private Context mAppContext;
     private final Set<String> mVisibleCells = new HashSet<String>();
     private final ReportFlushedReceiver mReportFlushedReceiver = new ReportFlushedReceiver();
     private final AtomicBoolean mReportWasFlushed = new AtomicBoolean();
-    private final ISimpleCellScanner mSimpleCellScanner;
+    private ISimpleCellScanner mSimpleCellScanner;
     private Timer mCellScanTimer;
     private Handler mBroadcastScannedHandler;
     private AtomicInteger mScanCount = new AtomicInteger();
 
-    public CellScanner(Context appCtx) {
+    public CellScanner(LocationRequest lr) {
+        CELL_MIN_UPDATE_TIME = lr.getCellScanInterval();
+    }
+
+    synchronized void init(Context appCtx) {
         mAppContext = appCtx;
         if (AppGlobals.isDebug && Prefs.getInstance(mAppContext).isSimulateStumble()) {
             mSimpleCellScanner = new MockSimpleCellScanner();
@@ -141,6 +146,8 @@ public class CellScanner {
     public synchronized int getVisibleCellInfoCount() {
         return mVisibleCells.size();
     }
+
+
 
     private class ReportFlushedReceiver extends BroadcastReceiver {
         @Override

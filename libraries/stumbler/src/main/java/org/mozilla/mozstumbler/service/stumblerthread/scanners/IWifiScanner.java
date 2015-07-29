@@ -30,7 +30,7 @@ public interface IWifiScanner {
     void init(Context ctx);
 
     // Start scanning with some configuration options
-    void start(LocationRequestConfig config_param);
+    void start(LocationRequest config_param);
 
     void stop();
 

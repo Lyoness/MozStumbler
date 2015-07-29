@@ -46,17 +46,12 @@ public class WifiScanner implements IWifiScanner {
     private Timer mWifiScanTimer;
     private AtomicInteger mVisibleAPs = new AtomicInteger();
 
-    public WifiScanner() {
-        this(DEFAULT_WIFI_MIN_UPDATE_TIME);
-    }
-
-    // TODO: move this wifiMinUpdateTime into the IScanConfig option
-    public WifiScanner(long wifiMinUpdateTime) {
-        WIFI_MIN_UPDATE_TIME = wifiMinUpdateTime;
+    public WifiScanner(LocationRequest lr) {
+        WIFI_MIN_UPDATE_TIME = lr.getWifiInterval();
     }
 
     @Override
-    public void init(Context ctx) {
+    synchronized public void init(Context ctx) {
         mAppContext = ctx.getApplicationContext();
         simulationWifiManagerProxy = new SimulationWifiManagerProxy(mAppContext);
     }
@@ -86,7 +81,7 @@ public class WifiScanner implements IWifiScanner {
     }
 
     @Override
-    public synchronized void start(LocationRequestConfig config_param) {
+    public synchronized void start(LocationRequest config_param) {
 
 
         // If the scan timer is active, this will reset the number of times it has run
