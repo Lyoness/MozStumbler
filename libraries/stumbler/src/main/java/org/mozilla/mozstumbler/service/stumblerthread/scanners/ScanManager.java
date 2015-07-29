@@ -71,7 +71,7 @@ public class ScanManager {
     private static final int FLUSH_RATE_MS = 10000; // 10 sec
 
     private GPSScanner mGPSScanner;
-    private WifiScanner mWifiScanner;
+    private IClientWifiScanner mWifiScanner;
     private CellScanner mCellScanner;
 
     private ActiveOrPassiveStumbling mStumblingMode = ActiveOrPassiveStumbling.ACTIVE_STUMBLING;
@@ -160,8 +160,9 @@ public class ScanManager {
             return;
         }
 
-        mWifiScanner.start(new LocationRequest());
-        mCellScanner.start();
+        LocationRequest lr = new LocationRequest();
+        mWifiScanner.start(lr);
+        mCellScanner.start(lr);
 
         if (mFlushTimer != null) {
             mFlushTimer.cancel();
@@ -237,12 +238,10 @@ public class ScanManager {
 
         mGPSScanner = new GPSScanner(mAppContext, this);
 
-        LocationRequest lr = new LocationRequest();
-
-        mWifiScanner = new WifiScanner(lr);
+        mWifiScanner = new WifiScanner();
         mWifiScanner.init(mAppContext);
 
-        mCellScanner = new CellScanner(lr);
+        mCellScanner = new CellScanner();
         mCellScanner.init(mAppContext);
 
         mGPSScanner.start(mStumblingMode);

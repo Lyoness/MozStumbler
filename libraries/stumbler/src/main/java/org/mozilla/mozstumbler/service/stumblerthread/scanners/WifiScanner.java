@@ -23,7 +23,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class WifiScanner implements IWifiScanner {
+public class WifiScanner implements IClientWifiScanner {
     public static final String ACTION_BASE = AppGlobals.ACTION_NAMESPACE + ".WifiScanner.";
     public static final String ACTION_WIFIS_SCANNED = ACTION_BASE + "WIFIS_SCANNED";
     public static final String ACTION_WIFIS_SCANNED_ARG_RESULTS = "scan_results";
@@ -36,7 +36,7 @@ public class WifiScanner implements IWifiScanner {
     private static final String LOG_TAG = LoggerUtil.makeLogTag(WifiScanner.class);
 
     private static final long DEFAULT_WIFI_MIN_UPDATE_TIME = 4000; // milliseconds
-    private final long WIFI_MIN_UPDATE_TIME;  // milliseconds
+    private long WIFI_MIN_UPDATE_TIME;  // milliseconds
 
     private Context mAppContext;
     private SimulationWifiManagerProxy simulationWifiManagerProxy;
@@ -46,9 +46,7 @@ public class WifiScanner implements IWifiScanner {
     private Timer mWifiScanTimer;
     private AtomicInteger mVisibleAPs = new AtomicInteger();
 
-    public WifiScanner(LocationRequest lr) {
-        WIFI_MIN_UPDATE_TIME = lr.getWifiInterval();
-    }
+    public WifiScanner() {}
 
     @Override
     synchronized public void init(Context ctx) {
@@ -81,8 +79,8 @@ public class WifiScanner implements IWifiScanner {
     }
 
     @Override
-    public synchronized void start(LocationRequest config_param) {
-
+    public synchronized void start(LocationRequest lr) {
+        WIFI_MIN_UPDATE_TIME = lr.getWifiInterval();
 
         // If the scan timer is active, this will reset the number of times it has run
         mScanCount.set(0);

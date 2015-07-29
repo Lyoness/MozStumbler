@@ -31,7 +31,7 @@ public class CellScanner {
     public static final String ACTION_CELLS_SCANNED_ARG_CELLS = "cells";
     public static final String ACTION_CELLS_SCANNED_ARG_TIME = AppGlobals.ACTION_ARG_TIME;
 
-    private final long CELL_MIN_UPDATE_TIME;
+    private long CELL_MIN_UPDATE_TIME;
 
     private Context mAppContext;
     private final Set<String> mVisibleCells = new HashSet<String>();
@@ -42,11 +42,10 @@ public class CellScanner {
     private Handler mBroadcastScannedHandler;
     private AtomicInteger mScanCount = new AtomicInteger();
 
-    public CellScanner(LocationRequest lr) {
-        CELL_MIN_UPDATE_TIME = lr.getCellScanInterval();
+    public CellScanner() {
     }
 
-    synchronized void init(Context appCtx) {
+    synchronized public void init(Context appCtx) {
         mAppContext = appCtx;
         if (AppGlobals.isDebug && Prefs.getInstance(mAppContext).isSimulateStumble()) {
             mSimpleCellScanner = new MockSimpleCellScanner();
@@ -55,7 +54,9 @@ public class CellScanner {
         }
     }
 
-    public void start() {
+    public void start(LocationRequest lr) {
+        CELL_MIN_UPDATE_TIME = lr.getCellScanInterval();
+
         if (!mSimpleCellScanner.isSupportedOnThisDevice()) {
             return;
         }
