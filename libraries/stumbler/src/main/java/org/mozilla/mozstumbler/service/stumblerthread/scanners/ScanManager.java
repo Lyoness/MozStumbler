@@ -71,8 +71,9 @@ public class ScanManager {
     private static final int FLUSH_RATE_MS = 10000; // 10 sec
 
     private GPSScanner mGPSScanner;
+
     private IClientWifiScanner mWifiScanner;
-    private CellScanner mCellScanner;
+    private IClientCellScanner mCellScanner;
 
     private ActiveOrPassiveStumbling mStumblingMode = ActiveOrPassiveStumbling.ACTIVE_STUMBLING;
 
