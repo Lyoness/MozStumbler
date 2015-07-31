@@ -7,6 +7,7 @@ package org.mozilla.mozstumbler.service.stumblerthread.scanners;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Build;
@@ -54,6 +55,13 @@ public class BaseWifiManagerProxy extends BroadcastReceiver {
         mWifiScanner = wifiScanner;
     }
 
+    public void registerIntentListener() {
+        IntentFilter i = new IntentFilter();
+        i.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
+        i.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
+        mAppContext.registerReceiver(this, i);
+    }
+
     public void unregisterReceiver() {
         try {
             mAppContext.unregisterReceiver(this);
@@ -70,5 +78,6 @@ public class BaseWifiManagerProxy extends BroadcastReceiver {
     public WifiManager.WifiLock createWifiLock() {
         return _getWifiManager().createWifiLock(WifiManager.WIFI_MODE_SCAN_ONLY, "MozStumbler");
     }
+
 
 }

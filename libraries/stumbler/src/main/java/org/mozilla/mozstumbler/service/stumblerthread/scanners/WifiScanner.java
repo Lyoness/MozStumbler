@@ -94,7 +94,12 @@ public class WifiScanner implements IClientWifiScanner {
             activatePeriodicScan();
         }
 
+        // You must register a callback site
         simulationWifiManagerProxy.registerReceiver(this);
+
+        // You must register an intent listener to get callbacks
+        simulationWifiManagerProxy.registerIntentListener();
+
     }
 
 
@@ -175,12 +180,11 @@ public class WifiScanner implements IClientWifiScanner {
         Intent i = new Intent(ACTION_WIFIS_SCANNED);
         i.putParcelableArrayListExtra(ACTION_WIFIS_SCANNED_ARG_RESULTS, scanResults);
         i.putExtra(ACTION_WIFIS_SCANNED_ARG_TIME, System.currentTimeMillis());
-        LocalBroadcastManager.getInstance(mAppContext).sendBroadcast(i);
-
-
 
         mVisibleAPs.set(scanResults.size());
 
+        // TODO: can we change this to sendBroadcast
+        LocalBroadcastManager.getInstance(mAppContext).sendBroadcastSync(i);
     }
 
     public void wifiScanCallback(Context c, Intent intent) {

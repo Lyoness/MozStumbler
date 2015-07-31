@@ -8,6 +8,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.wifi.ScanResult;
 import android.os.Handler;
 import android.os.Message;
 import android.support.v4.content.LocalBroadcastManager;
@@ -119,12 +120,18 @@ public class CellScanner implements IClientCellScanner {
                 Intent intent = new Intent(ACTION_CELLS_SCANNED);
                 intent.putParcelableArrayListExtra(ACTION_CELLS_SCANNED_ARG_CELLS, cells);
                 intent.putExtra(ACTION_CELLS_SCANNED_ARG_TIME, curTime);
-                // send to handler, so broadcast is not from timer thread
-                Message message = new Message();
-                message.obj = intent;
-                mBroadcastScannedHandler.sendMessage(message);
+                cellScanCallback(mAppContext, intent);
             }
         }, 0, CELL_MIN_UPDATE_TIME);
+    }
+
+
+    @Override
+    public void cellScanCallback(Context c, Intent intent) {
+        // send to handler, so broadcast is not from timer thread
+        Message message = new Message();
+        message.obj = intent;
+        mBroadcastScannedHandler.sendMessage(message);
     }
 
     private synchronized void clearCells() {
@@ -145,11 +152,11 @@ public class CellScanner implements IClientCellScanner {
         mSimpleCellScanner.stop();
     }
 
+
+    @Override
     public synchronized int getVisibleCellInfoCount() {
         return mVisibleCells.size();
     }
-
-
 
     private class ReportFlushedReceiver extends BroadcastReceiver {
         @Override

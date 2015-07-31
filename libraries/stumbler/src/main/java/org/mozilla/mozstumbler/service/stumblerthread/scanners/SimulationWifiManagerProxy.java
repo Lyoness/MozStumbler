@@ -35,7 +35,7 @@ public class SimulationWifiManagerProxy extends BaseWifiManagerProxy {
             return true;
         }
 
-        // Fallback to baseclass behavior
+        // Fallback to base class behavior
         return super.runWifiScan();
     }
 
@@ -63,13 +63,10 @@ public class SimulationWifiManagerProxy extends BaseWifiManagerProxy {
     }
 
     @Override
-    public synchronized void registerReceiver(WifiScanner wifiScanner) {
-        super.registerReceiver(wifiScanner);
+    public void registerIntentListener() {
+        // Only register the listener if simulation is not enabled
         if (!Prefs.getInstance(mAppContext).isSimulateStumble()) {
-            IntentFilter i = new IntentFilter();
-            i.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
-            i.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
-            mAppContext.registerReceiver(this, i);
+            super.registerIntentListener();
         }
     }
 }
