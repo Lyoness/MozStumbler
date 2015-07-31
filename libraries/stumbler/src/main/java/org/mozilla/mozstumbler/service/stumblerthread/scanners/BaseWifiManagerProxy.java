@@ -16,16 +16,26 @@ import org.mozilla.mozstumbler.svclocator.services.log.LoggerUtil;
 
 import java.util.List;
 
-public class BaseWifiManagerProxy extends BroadcastReceiver {
+public class BaseWifiManagerProxy
+        implements IWifiManagerProxy {
     static final String LOG_TAG = LoggerUtil.makeLogTag(BaseWifiManagerProxy.class);
 
+    BroadcastReceiver mWifiScanReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            mScannerDelegate.wifiScanCallback(context, intent);
+        }
+    };
+
+
     final Context mAppContext;
-    WifiScanner mWifiScanner;
+    IWifiScannerDelegate mScannerDelegate;
 
     public BaseWifiManagerProxy(Context appContext) {
         mAppContext = appContext.getApplicationContext();
     }
 
+    @Override
     public boolean isWifiScanEnabled() {
         WifiManager manager = _getWifiManager();
         boolean scanEnabled = manager.isWifiEnabled();
@@ -35,10 +45,12 @@ public class BaseWifiManagerProxy extends BroadcastReceiver {
         return scanEnabled;
     }
 
+    @Override
     public boolean runWifiScan() {
         return _getWifiManager().startScan();
     }
 
+    @Override
     public List<ScanResult> getScanResults() {
         WifiManager manager = _getWifiManager();
         if (manager == null) {
@@ -51,30 +63,31 @@ public class BaseWifiManagerProxy extends BroadcastReceiver {
         return (WifiManager) mAppContext.getSystemService(Context.WIFI_SERVICE);
     }
 
-    public synchronized void registerReceiver(WifiScanner wifiScanner) {
-        mWifiScanner = wifiScanner;
+
+    @Override
+    public synchronized void registerDelegate(IWifiScannerDelegate wifiScanner) {
+        mScannerDelegate = wifiScanner;
     }
 
+    @Override
     public void registerIntentListener() {
         IntentFilter i = new IntentFilter();
         i.addAction(WifiManager.WIFI_STATE_CHANGED_ACTION);
         i.addAction(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
-        mAppContext.registerReceiver(this, i);
+        mAppContext.registerReceiver(mWifiScanReceiver, i);
     }
 
-    public void unregisterReceiver() {
+    public void unregisterIntentListener() {
         try {
-            mAppContext.unregisterReceiver(this);
+            mAppContext.unregisterReceiver(mWifiScanReceiver);
         } catch (IllegalArgumentException ex) {
             // doesn't matter - this is safe to ignore as it just means that
             // we've just been running in simulation mode.
         }
     }
 
-    public void onReceive(Context c, Intent intent) {
-        mWifiScanner.wifiScanCallback(c, intent);
-    }
 
+    @Override
     public WifiManager.WifiLock createWifiLock() {
         return _getWifiManager().createWifiLock(WifiManager.WIFI_MODE_SCAN_ONLY, "MozStumbler");
     }

@@ -35,15 +35,6 @@ public interface IWifiScanner {
 
     void stop();
 
-    // Instances of IWifiScanner must send wifi scans into this method
-    // This is conceptually similar to an onReceive() method callback
-    // using an IntentFilter, except that implementations of IWifiScanner
-    // will probably use instances of WifiManagerProxy which run their
-    // own intent listeners. The wifiScanCallback is not named 'onReceive'
-    // to make it clear that the callback is not executed by
-    // the Android runtime.
-    void wifiScanCallback(Context c, Intent intent);
-
     // If you only need to capture the scan results, you probably only care
     // about overloading this method.
     void reportScanResults(ArrayList<ScanResult> scanResults);

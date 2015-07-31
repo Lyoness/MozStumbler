@@ -23,7 +23,11 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class WifiScanner implements IClientWifiScanner {
+public class WifiScanner
+        implements
+        IClientWifiScanner,
+        IWifiManagerProxy.IWifiScannerDelegate {
+
     public static final String ACTION_BASE = AppGlobals.ACTION_NAMESPACE + ".WifiScanner.";
     public static final String ACTION_WIFIS_SCANNED = ACTION_BASE + "WIFIS_SCANNED";
     public static final String ACTION_WIFIS_SCANNED_ARG_RESULTS = "scan_results";
@@ -39,7 +43,7 @@ public class WifiScanner implements IClientWifiScanner {
     private long WIFI_MIN_UPDATE_TIME;  // milliseconds
 
     private Context mAppContext;
-    private SimulationWifiManagerProxy simulationWifiManagerProxy;
+    private IWifiManagerProxy wifiManagerProxy;
     private boolean mStarted;
     private AtomicInteger mScanCount = new AtomicInteger();
     private WifiLock mWifiLock;
@@ -51,7 +55,7 @@ public class WifiScanner implements IClientWifiScanner {
     @Override
     synchronized public void init(Context ctx) {
         mAppContext = ctx.getApplicationContext();
-        simulationWifiManagerProxy = new SimulationWifiManagerProxy(mAppContext);
+        wifiManagerProxy = new SimulationWifiManagerProxy(mAppContext);
     }
 
     public static boolean shouldLog(ScanResult scanResult) {
@@ -71,11 +75,11 @@ public class WifiScanner implements IClientWifiScanner {
     }
 
     private boolean isWifiScanEnabled() {
-        return simulationWifiManagerProxy.isWifiScanEnabled();
+        return wifiManagerProxy.isWifiScanEnabled();
     }
 
     private List<ScanResult> getScanResults() {
-        return simulationWifiManagerProxy.getScanResults();
+        return wifiManagerProxy.getScanResults();
     }
 
     @Override
@@ -95,10 +99,10 @@ public class WifiScanner implements IClientWifiScanner {
         }
 
         // You must register a callback site
-        simulationWifiManagerProxy.registerReceiver(this);
+        wifiManagerProxy.registerDelegate(this);
 
         // You must register an intent listener to get callbacks
-        simulationWifiManagerProxy.registerIntentListener();
+        wifiManagerProxy.registerIntentListener();
 
     }
 
@@ -106,7 +110,7 @@ public class WifiScanner implements IClientWifiScanner {
 
     public synchronized void stop() {
         if (mStarted) {
-            simulationWifiManagerProxy.unregisterReceiver();
+            wifiManagerProxy.unregisterIntentListener();
         }
         deactivatePeriodicScan();
         mStarted = false;
@@ -135,7 +139,7 @@ public class WifiScanner implements IClientWifiScanner {
             Log.d(LOG_TAG, "Activate Periodic Scan");
         }
 
-        mWifiLock = simulationWifiManagerProxy.createWifiLock();
+        mWifiLock = wifiManagerProxy.createWifiLock();
         mWifiLock.acquire();
 
         // Ensure that we are constantly scanning for new access points.
@@ -151,7 +155,7 @@ public class WifiScanner implements IClientWifiScanner {
                 if (AppGlobals.isDebug) {
                     Log.d(LOG_TAG, "WiFi Scanning Timer fired");
                 }
-                simulationWifiManagerProxy.runWifiScan();
+                wifiManagerProxy.runWifiScan();
             }
         }, 0, WIFI_MIN_UPDATE_TIME);
     }
@@ -197,7 +201,7 @@ public class WifiScanner implements IClientWifiScanner {
                 deactivatePeriodicScan();
             }
         } else if (WifiManager.SCAN_RESULTS_AVAILABLE_ACTION.equals(action)) {
-            final List<ScanResult> scanResultList = simulationWifiManagerProxy.getScanResults();
+            final List<ScanResult> scanResultList = wifiManagerProxy.getScanResults();
             if (scanResultList == null) {
                 return;
             }

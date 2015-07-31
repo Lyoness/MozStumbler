@@ -18,7 +18,10 @@ import java.util.List;
  This class provides an abstraction around android.net.wifi.WifiManager
  so that we can properly mock it out and simulate inbound intents.
  */
-public class SimulationWifiManagerProxy extends BaseWifiManagerProxy {
+public class SimulationWifiManagerProxy
+        extends BaseWifiManagerProxy
+    implements IWifiManagerProxy
+    {
     private static final String LOG_TAG = LoggerUtil.makeLogTag(SimulationWifiManagerProxy.class);
 
     public SimulationWifiManagerProxy(Context appContext) {
@@ -31,7 +34,7 @@ public class SimulationWifiManagerProxy extends BaseWifiManagerProxy {
             // This intent will signal the WifiScanner class to ask for new scan results
             // by invoking getScanResults
             Intent i = new Intent(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION);
-            onReceive(mAppContext, i);
+            mWifiScanReceiver.onReceive(mAppContext, i);
             return true;
         }
 
