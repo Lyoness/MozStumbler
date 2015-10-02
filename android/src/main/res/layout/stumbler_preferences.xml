@@ -54,11 +54,6 @@
             android:key="crash_reporting"
             android:title="@string/enable_crash_reporting" />
     </PreferenceCategory>
-    <PreferenceCategory android:key="api_10_support">
-        <Preference
-            android:key="leaderboard_button"
-            android:title="@string/view_leaderboard" />
-    </PreferenceCategory>
 
     <Preference
         android:key="file_bug"

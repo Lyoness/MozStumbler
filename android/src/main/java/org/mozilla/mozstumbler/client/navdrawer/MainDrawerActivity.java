@@ -34,7 +34,6 @@ import org.mozilla.mozstumbler.client.MainApp;
 import org.mozilla.mozstumbler.client.Updater;
 import org.mozilla.mozstumbler.client.mapview.MapFragment;
 import org.mozilla.mozstumbler.client.subactivities.FirstRunFragment;
-import org.mozilla.mozstumbler.client.subactivities.LeaderboardActivity;
 import org.mozilla.mozstumbler.service.stumblerthread.StumblerServiceIntentActions;
 import org.mozilla.mozstumbler.svclocator.ServiceLocator;
 import org.mozilla.mozstumbler.svclocator.services.log.ILogger;
@@ -183,7 +182,7 @@ public class MainDrawerActivity
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.main, menu);
+        //getMenuInflater().inflate(R.menu.main, menu);
 
         mMenuItemStartStop = menu.add(Menu.NONE, MENU_START_STOP, Menu.NONE, R.string.start_scanning);
         if (Build.VERSION.SDK_INT >= 14) {
@@ -298,9 +297,6 @@ public class MainDrawerActivity
         switch (item.getItemId()) {
             case MENU_START_STOP:
                 mMapFragment.toggleScanning(item);
-                return true;
-            case R.id.action_view_leaderboard:
-                startActivity(new Intent(getApplication(), LeaderboardActivity.class));
                 return true;
             default:
                 return super.onOptionsItemSelected(item);

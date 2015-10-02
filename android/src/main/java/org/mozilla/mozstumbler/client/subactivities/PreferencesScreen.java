@@ -133,18 +133,6 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
             }
         });
 
-        button = findPreference("leaderboard_button");
-        if (Build.VERSION.SDK_INT > 10) {
-            ((PreferenceGroup) findPreference("api_10_support")).removePreference(button);
-        }
-        button.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
-            @Override
-            public boolean onPreferenceClick(Preference arg) {
-                startActivity(new Intent(PreferencesScreen.this, LeaderboardActivity.class));
-                return true;
-            }
-        });
-
         button = findPreference("developer_button");
         button.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
             @Override
