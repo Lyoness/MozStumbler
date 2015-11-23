@@ -6,3 +6,6 @@ test:
 
 upload:
 	./gradlew bintrayUpload
+
+clean:
+	./gradlew clean
