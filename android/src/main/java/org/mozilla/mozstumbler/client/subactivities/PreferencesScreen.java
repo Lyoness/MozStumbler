@@ -8,7 +8,6 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 import android.preference.CheckBoxPreference;
 import android.preference.EditTextPreference;
@@ -16,7 +15,6 @@ import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.Preference.OnPreferenceChangeListener;
 import android.preference.PreferenceActivity;
-import android.preference.PreferenceGroup;
 import android.text.TextUtils;
 import android.webkit.CookieManager;
 import android.webkit.CookieSyncManager;
@@ -30,13 +28,13 @@ import org.mozilla.accounts.fxa.Intents;
 import org.mozilla.accounts.fxa.dialog.OAuthDialog;
 import org.mozilla.accounts.fxa.tasks.DestroyOAuthTask;
 import org.mozilla.accounts.fxa.tasks.ProfileJson;
-import org.mozilla.accounts.fxa.tasks.RetrieveProfileTask;
 import org.mozilla.accounts.fxa.tasks.SetDisplayNameTask;
 import org.mozilla.accounts.fxa.tasks.VerifyOAuthTask;
 import org.mozilla.mozstumbler.BuildConfig;
 import org.mozilla.mozstumbler.R;
 import org.mozilla.mozstumbler.client.ClientPrefs;
 import org.mozilla.mozstumbler.client.MainApp;
+import org.mozilla.mozstumbler.client.leaderboard.LeaderboardAPI;
 import org.mozilla.mozstumbler.service.Prefs;
 import org.mozilla.mozstumbler.service.utils.NetworkInfo;
 import org.mozilla.mozstumbler.svclocator.ServiceLocator;
@@ -163,9 +161,8 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
                     return false;
                 }
 
-                SetDisplayNameTask task = new SetDisplayNameTask(getApplicationContext(),
-                        BuildConfig.FXA_PROFILE_SERVER);
-                task.execute(getPrefs().getBearerToken(), newValue.toString());
+                LeaderboardAPI lbAPI = new LeaderboardAPI();
+                lbAPI.updateLeaderName(newValue.toString(), getPrefs().getBearerToken());
                 return true;
             }
         });
@@ -357,7 +354,7 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
 
         getPrefs().setLeaderboardUID(user_id);
 
-        fetchLeaderboardProfile(getPrefs().getBearerToken(), getPrefs().getLeaderboardUID());
+        fetchLeaderName(getPrefs().getLeaderboardUID());
     }
 
     @Override
@@ -371,7 +368,7 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
             clearFxaLoginState();
         }
         if (s.equals(Intents.DISPLAY_NAME_WRITE)) {
-            fetchLeaderboardProfile(getPrefs().getBearerToken(),
+            fetchLeaderName(
                     getPrefs().getLeaderboardUID());
         }
         if (s.equals(Intents.OAUTH_VERIFY)) {
@@ -379,11 +376,12 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
         }
     }
 
-    private void fetchLeaderboardProfile(String bearerToken, String leaderboardUID) {
-
-        // TODO: do an HTTP request, parse the JSON response and invoke
-        // a method that is similar to processProfileRead but process the JSON
-        // response from leaderboard instead.
+    private void fetchLeaderName(String leaderboardUID) {
+        LeaderboardAPI lbAPI = new LeaderboardAPI();
+        String leaderName = lbAPI.getLeaderName(leaderboardUID);
+        if (leaderName != null) {
+            setNicknamePreferenceTitle(leaderName);
+        }
     }
 
     @Override
@@ -401,7 +399,7 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
     @Override
     public void processDisplayNameWrite() {
         // Fetch the profile to make sure we have the proper display name
-        fetchLeaderboardProfile(getPrefs().getBearerToken(),
+        fetchLeaderName(
                 getPrefs().getLeaderboardUID());
     }
 
