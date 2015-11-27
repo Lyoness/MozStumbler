@@ -28,10 +28,7 @@ apply plugin: 'com.android.application'
 
 repositories {
     jcenter()
-
-    // This is needed to get volley and some other crap
     maven { url 'https://oss.sonatype.org/content/repositories/snapshots/' }
-
     mavenLocal()
 }
 
@@ -267,10 +264,6 @@ dependencies {
     // Stumbler library - always build from source
     compile project(':libraries:stumbler')
     testCompile project(':libraries:stumbler')
-
-    // Volley HTTP library for better JSON
-    compile 'com.mcxiaoke.volley:library:1.0.19'
-    testCompile 'com.mcxiaoke.volley:library:1.0.19'
 
 }
 
