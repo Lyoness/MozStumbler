@@ -22,6 +22,7 @@ import android.webkit.CookieManager;
 import android.webkit.CookieSyncManager;
 import android.widget.Toast;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.mozilla.accounts.fxa.FxAGlobals;
 import org.mozilla.accounts.fxa.IFxACallbacks;
@@ -57,11 +58,6 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
     private ListPreference mMapTileDetail;
     private Preference mFxaLoginPreference;
 
-    private void fetchFxaProfile(String bearerToken) {
-        RetrieveProfileTask task = new RetrieveProfileTask(getApplicationContext(),
-                BuildConfig.FXA_PROFILE_SERVER);
-        task.execute(bearerToken);
-    }
 
 
     private ClientPrefs getPrefs() {
@@ -347,7 +343,21 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
     @Override
     public void processReceiveBearerToken(String bearerToken) {
         getPrefs().setBearerToken(bearerToken);
-        fetchFxaProfile(bearerToken);
+    }
+
+    @Override
+    public void processRawResponse(JSONObject jsonObject) {
+        String user_id;
+        try {
+            user_id = jsonObject.getString("uid");
+        } catch (JSONException e) {
+            Log.e(LOG_TAG, "Error extracting UID from login response: ["+e.toString()+"]");
+            return;
+        }
+
+        getPrefs().setLeaderboardUID(user_id);
+
+        fetchLeaderboardProfile(getPrefs().getBearerToken(), getPrefs().getLeaderboardUID());
     }
 
     @Override
@@ -361,34 +371,38 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
             clearFxaLoginState();
         }
         if (s.equals(Intents.DISPLAY_NAME_WRITE)) {
-            fetchFxaProfile(getPrefs().getBearerToken());
+            fetchLeaderboardProfile(getPrefs().getBearerToken(),
+                    getPrefs().getLeaderboardUID());
         }
         if (s.equals(Intents.OAUTH_VERIFY)) {
             clearFxaLoginState();
         }
     }
 
+    private void fetchLeaderboardProfile(String bearerToken, String leaderboardUID) {
+
+        // TODO: do an HTTP request, parse the JSON response and invoke
+        // a method that is similar to processProfileRead but process the JSON
+        // response from leaderboard instead.
+    }
+
     @Override
     public void processProfileRead(JSONObject jsonObject) {
         ProfileJson profileJson = new ProfileJson(jsonObject);
-        String displayName = profileJson.getDisplayName();
         String email = profileJson.getEmail();
 
         if (!TextUtils.isEmpty(email)) {
             Prefs.getInstance(this).setEmail(email);
             setFxALoginTitle(getPrefs().getBearerToken(), getPrefs().getEmail());
         }
-
-        if (!TextUtils.isEmpty(displayName)) {
-            Prefs.getInstance(this).setNickname(displayName);
-            setNicknamePreferenceTitle(displayName);
-        }
+        
     }
 
     @Override
     public void processDisplayNameWrite() {
         // Fetch the profile to make sure we have the proper display name
-        fetchFxaProfile(getPrefs().getBearerToken());
+        fetchLeaderboardProfile(getPrefs().getBearerToken(),
+                getPrefs().getLeaderboardUID());
     }
 
     @Override

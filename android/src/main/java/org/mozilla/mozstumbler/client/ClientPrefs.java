@@ -29,6 +29,7 @@ public class ClientPrefs extends Prefs {
     private static final String ON_MAP_MLS_DRAW_IS_ON = "actually_draw_mls_dots_on_map";
     private static final String DEFAULT_SIMULATION_LAT_LONG = "default_simulation_lat_lon";
     private static final String MIN_BATTERY_PCT = "min_battery_pct";
+    private static final String LEADERBOARD_UID_PREF = "leaderboard_uid";
 
     protected ClientPrefs(Context context) {
         super(context);
@@ -175,6 +176,17 @@ public class ClientPrefs extends Prefs {
         SharedPreferences.Editor editor = getPrefs().edit();
         editor.putInt(MIN_BATTERY_PCT, percent);
         apply(editor);
+    }
+
+    public void setLeaderboardUID(String leaderboardUID) {
+        if (leaderboardUID != null) {
+            leaderboardUID = leaderboardUID.trim();
+            setStringPref(LEADERBOARD_UID_PREF, leaderboardUID);
+        }
+    }
+
+    public String getLeaderboardUID() {
+        return getStringPref(LEADERBOARD_UID_PREF);
     }
 
     public enum MapTileResolutionOptions {Default, HighRes, LowRes, NoMap}
