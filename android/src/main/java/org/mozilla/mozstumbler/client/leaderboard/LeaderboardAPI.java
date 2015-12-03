@@ -1,5 +1,9 @@
 package org.mozilla.mozstumbler.client.leaderboard;
 
+import android.content.Context;
+import android.os.AsyncTask;
+import android.os.Build;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.mozilla.mozstumbler.BuildConfig;
@@ -16,52 +20,34 @@ import static org.mozilla.mozstumbler.BuildConfig.*;
 /**
  * Created by victorng on 15-11-26.
  */
-public class LeaderboardAPI {
+public class LeaderboardAPI implements ILeaderboardAPI {
 
     private static final String LOG_TAG = LoggerUtil.makeLogTag(LeaderboardAPI.class);
+    private final Context mContext;
     ILogger Log = (ILogger) ServiceLocator.getInstance().getService(ILogger.class);
-
-    private static final String GET_LEADER_URL = LB_SUBMIT_URL + "/api/v1/leaders/profile/";
-    private static final String UPDATE_CONTRIBUTOR_NAME_URL = LB_SUBMIT_URL + "/api/v1/contributors/update/" ;
-
 
     JSONAPIHelper jsonHelper = new JSONAPIHelper();
 
-    public String getLeaderName(String uid) {
-        JSONObject response  = jsonHelper.get(null, GET_LEADER_URL + uid + "/");
+    public LeaderboardAPI(Context ctx) {
+        mContext = ctx.getApplicationContext();
+    }
 
-        if (response == null) {
-            return null;
-        }
+    public void postLeaderboardReadRequest(String uid) {
+        Log.i(LOG_TAG, "postLeaderboardReadRequest started: ["+uid+"]");
+        GetLeaderName task = new GetLeaderName(mContext, BuildConfig.LB_SUBMIT_URL);
 
-        try {
-            return response.getString("name");
-        } catch (JSONException e) {
-            Log.e(LOG_TAG, "Error extracting 'name' from : " + response.toString());
-            return null;
-        }
+        if (Build.VERSION.SDK_INT>=Build.VERSION_CODES.HONEYCOMB)
+            task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, uid);
+        else
+            task.execute(uid);
+
+
+        Log.i(LOG_TAG, "GetLeaderName::execute returned");
     }
 
     public boolean updateLeaderName(String name, String access_token) {
-        HashMap<String, String> headers = new HashMap<String, String>();
-        headers.put("Authorization", "Bearer " + access_token);
-        JSONObject payload = new JSONObject();
-        try {
-            payload.put("name", name);
-        } catch (JSONException e) {
-            Log.e(LOG_TAG, "Error setting name in updateLeader: " + e.toString());
-            return false;
-        }
 
-        IResponse resp = jsonHelper.post(headers, UPDATE_CONTRIBUTOR_NAME_URL, payload);
-
-        if (resp != null && resp.isSuccessCode2XX()) {
-            return true;
-        }
-
-        if (resp != null) {
-            Log.w(LOG_TAG, "Error updating leader name: " + resp.toString());
-        }
+        // TODO
         return false;
     }
 }

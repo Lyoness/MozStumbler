@@ -5,16 +5,18 @@
 package org.mozilla.mozstumbler.client.subactivities;
 
 import android.app.AlertDialog;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.preference.CheckBoxPreference;
-import android.preference.EditTextPreference;
 import android.preference.ListPreference;
 import android.preference.Preference;
 import android.preference.Preference.OnPreferenceChangeListener;
 import android.preference.PreferenceActivity;
+import android.support.v4.content.LocalBroadcastManager;
 import android.text.TextUtils;
 import android.webkit.CookieManager;
 import android.webkit.CookieSyncManager;
@@ -27,13 +29,12 @@ import org.mozilla.accounts.fxa.IFxACallbacks;
 import org.mozilla.accounts.fxa.Intents;
 import org.mozilla.accounts.fxa.dialog.OAuthDialog;
 import org.mozilla.accounts.fxa.tasks.DestroyOAuthTask;
-import org.mozilla.accounts.fxa.tasks.ProfileJson;
-import org.mozilla.accounts.fxa.tasks.SetDisplayNameTask;
 import org.mozilla.accounts.fxa.tasks.VerifyOAuthTask;
 import org.mozilla.mozstumbler.BuildConfig;
 import org.mozilla.mozstumbler.R;
 import org.mozilla.mozstumbler.client.ClientPrefs;
 import org.mozilla.mozstumbler.client.MainApp;
+import org.mozilla.mozstumbler.client.leaderboard.ILeaderboardAPI;
 import org.mozilla.mozstumbler.client.leaderboard.LeaderboardAPI;
 import org.mozilla.mozstumbler.service.Prefs;
 import org.mozilla.mozstumbler.service.utils.NetworkInfo;
@@ -44,9 +45,17 @@ import org.mozilla.mozstumbler.svclocator.services.log.LoggerUtil;
 public class PreferencesScreen extends PreferenceActivity implements IFxACallbacks{
 
     private static final String LOG_TAG = LoggerUtil.makeLogTag(PreferencesScreen.class);
+
+    // Messages that are passed between off main-thread JSON calls to the leaderboard
+    public static final String UPDATE_LEADERNAME = "_msg_upd_leadername";
+    public static final String UPDATE_LEADERNAME_FAILURE = "_msg_upd_leadername_failure";
+
+    public static final String RECEIVED_LEADERNAME = "_msg_receive_leadername";
+    public static final String RECEIVED_LEADERNAME_FAILURE = "_msg_receive_leadername_failure";
+
     ILogger Log = (ILogger) ServiceLocator.getInstance().getService(ILogger.class);
 
-    private EditTextPreference mNicknamePreference;
+    private Preference mFxALoginPref;
 
     private CheckBoxPreference mWifiPreference;
     private CheckBoxPreference mKeepScreenOn;
@@ -54,8 +63,26 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
     private CheckBoxPreference mCrashReportsOn;
     private CheckBoxPreference mUnlimitedMapZoom;
     private ListPreference mMapTileDetail;
-    private Preference mFxaLoginPreference;
 
+
+    private final BroadcastReceiver callbackReceiver = new BroadcastReceiver() {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent.getAction().equals(UPDATE_LEADERNAME)) {
+                processLeaderboardNameWrite(true);
+            } else if (intent.getAction().equals(UPDATE_LEADERNAME_FAILURE)) {
+                processLeaderboardNameWrite(false);
+            } else if (intent.getAction().equals(RECEIVED_LEADERNAME)) {
+                processLeaderboardNameGet(intent, true);
+            } else if (intent.getAction().equals(RECEIVED_LEADERNAME_FAILURE)) {
+                processLeaderboardNameGet(intent, false);
+            } else {
+                android.util.Log.w(LOG_TAG, "Unexpected intent: " + intent);
+            }
+        }
+
+    };
 
 
     private ClientPrefs getPrefs() {
@@ -67,13 +94,17 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        addPreferencesFromResource(R.layout.stumbler_preferences);
+        try {
+            addPreferencesFromResource(R.layout.stumbler_preferences);
 
-        mNicknamePreference = (EditTextPreference) getPreferenceManager().findPreference(Prefs.NICKNAME_PREF);
+            mFxALoginPref =  getPreferenceManager().findPreference(Prefs.FXA_LOGIN_PREF);
 
-        mFxaLoginPreference = getPreferenceManager().findPreference(Prefs.FXA_LOGIN_PREF);
-        setFxALoginTitle(getPrefs().getBearerToken(), getPrefs().getEmail());
-        setNicknamePreferenceTitle(getPrefs().getNickname());
+            updateUILeaderboardNickname();
+        } catch (Exception e) {
+            Log.e(LOG_TAG, "Error updating fxa preference and the UI for logins", e);
+            return;
+        }
+
 
         mWifiPreference = (CheckBoxPreference) getPreferenceManager().findPreference(Prefs.WIFI_ONLY);
         mKeepScreenOn = (CheckBoxPreference) getPreferenceManager().findPreference(ClientPrefs.KEEP_SCREEN_ON_PREF);
@@ -91,8 +122,24 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
         verifyBearerToken();
 
         String app_name = getResources().getString(R.string.app_name);
+
+
         FxAGlobals fxa = new FxAGlobals();
         fxa.startIntentListening((Context)this, (IFxACallbacks) this, app_name);
+
+
+        // Register listeners so that we can be notified when off-main thread
+        // Leaderboard API requests complete.
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction(RECEIVED_LEADERNAME);
+        intentFilter.addAction(RECEIVED_LEADERNAME_FAILURE);
+
+        intentFilter.addAction(UPDATE_LEADERNAME);
+        intentFilter.addAction(UPDATE_LEADERNAME_FAILURE);
+
+
+        LocalBroadcastManager.getInstance(getApplicationContext())
+                .registerReceiver(callbackReceiver, intentFilter);
 
     }
 
@@ -154,21 +201,7 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
 
     private void setPreferenceListener() {
 
-        mNicknamePreference.setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
-            @Override
-            public boolean onPreferenceChange(Preference preference, Object newValue) {
-                if (!hasNetworkForFxA()) {
-                    return false;
-                }
-
-                LeaderboardAPI lbAPI = new LeaderboardAPI();
-                lbAPI.updateLeaderName(newValue.toString(), getPrefs().getBearerToken());
-                return true;
-            }
-        });
-
-
-        mFxaLoginPreference.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
+        mFxALoginPref.setOnPreferenceClickListener(new Preference.OnPreferenceClickListener() {
             @Override
             public boolean onPreferenceClick(Preference preference) {
                 NetworkInfo netInfo = new NetworkInfo(PreferencesScreen.this);
@@ -182,6 +215,8 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
 
                 String bearerToken = getPrefs().getBearerToken();
                 if (!TextUtils.isEmpty(bearerToken)) {
+
+
                     AlertDialog.Builder myAlertDialog = new AlertDialog.Builder(PreferencesScreen.this);
                     myAlertDialog.setTitle(getString(R.string.fxaPromptLogout));
                     myAlertDialog.setPositiveButton(getString(R.string.yes), new DialogInterface.OnClickListener() {
@@ -199,6 +234,7 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
                         }});
                     myAlertDialog.show();
                     return true;
+
                 }
 
                 // These secrets are provisioned from the FxA dashboard
@@ -217,9 +253,7 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
                 // If you add an scope that is not on that list, the login screen will hang instead
                 // of going to the final redirect.  No user visible error occurs. This is terrible.
                 // https://github.com/mozilla/fxa-content-server/issues/2508
-                String[] scopes = new String[] {"profile:email",
-                        "profile:display_name",
-                        "profile:display_name:write"};
+                String[] scopes = new String[] {"profile:email"};
 
                 new OAuthDialog(PreferencesScreen.this,
                         BuildConfig.FXA_SIGNIN_URL,
@@ -304,35 +338,48 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
         getPrefs().setBearerToken("");
         getPrefs().setEmail("");
         getPrefs().setNickname("");
-        setFxALoginTitle("", "");
-        setNicknamePreferenceTitle("");
+        updateUILeaderboardNickname();
         Toast.makeText(getApplicationContext(),
                 getApplicationContext().getString(R.string.fxa_is_logged_out),
                 Toast.LENGTH_LONG).show();
     }
 
-    private void setFxALoginTitle(String bearerToken, String email) {
-        if (TextUtils.isEmpty(email)) {
-            email = "";
-        }
-        if (!TextUtils.isEmpty(bearerToken)) {
-            mFxaLoginPreference.setTitle(getString(R.string.fxa_settings_title));
-            mFxaLoginPreference.setSummary(getString(R.string.fxaDescriptionLoggedIn) + ":\n" + email);
-            mNicknamePreference.setEnabled(true);
+    /*
+    Update the preference screen UI to display
+     */
+    private void updateUILeaderboardNickname() {
+        String nickname = getPrefs().getNickname();
+        if (!TextUtils.isEmpty(getPrefs().getBearerToken())) {
+            mFxALoginPref.setTitle(getString(R.string.fxa_settings_title));
+            mFxALoginPref.setSummary(getString(R.string.fxaDescriptionLoggedIn) + ":\n" + nickname);
         } else {
-            mFxaLoginPreference.setTitle(getString(R.string.fxa_settings_title));
-            mFxaLoginPreference.setSummary(getString(R.string.fxaDescription));
-            mNicknamePreference.setEnabled(false);
+            mFxALoginPref.setTitle(getString(R.string.fxa_settings_title));
+            mFxALoginPref.setSummary(getString(R.string.fxaDescription));
         }
     }
 
-    private void setNicknamePreferenceTitle(String displayName) {
-        if (!TextUtils.isEmpty(displayName)) {
-            String title = String.format(getString(R.string.enter_nickname_title), displayName);
-            mNicknamePreference.setTitle(title);
-        } else {
-            mNicknamePreference.setTitle(R.string.enter_nickname);
+    // Leaderboard callback
+    private void processLeaderboardNameWrite(boolean success) {
+        if (!success) {
+            return;
         }
+
+        // Trigger a read to get the written leaderboard name
+        LeaderboardAPI lbAPI = new LeaderboardAPI(this.getApplicationContext());
+        lbAPI.postLeaderboardReadRequest(getPrefs().getLeaderboardUID());
+    }
+
+    private void processLeaderboardNameGet(Intent intent, boolean b) {
+
+        if (!b) {
+            return;
+        }
+
+        String name = intent.getStringExtra("name");
+
+        // Save nickname before we update the UI
+        getPrefs().setNickname(name);
+        updateUILeaderboardNickname();
     }
 
 
@@ -340,21 +387,26 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
     @Override
     public void processReceiveBearerToken(String bearerToken) {
         getPrefs().setBearerToken(bearerToken);
+        Log.i(LOG_TAG, "Pref Screen saved bearerToken: ["+bearerToken+"]");
+
     }
 
     @Override
     public void processRawResponse(JSONObject jsonObject) {
-        String user_id;
+        String uid;
         try {
-            user_id = jsonObject.getString("uid");
+            uid = jsonObject.getString("uid");
         } catch (JSONException e) {
             Log.e(LOG_TAG, "Error extracting UID from login response: ["+e.toString()+"]");
             return;
         }
 
-        getPrefs().setLeaderboardUID(user_id);
 
-        fetchLeaderName(getPrefs().getLeaderboardUID());
+        getPrefs().setLeaderboardUID(uid);
+        Log.i(LOG_TAG, "Pref Screen saved UID: [" + uid + "]");
+
+        ILeaderboardAPI lbAPI = (ILeaderboardAPI) ServiceLocator.getInstance().getService(ILeaderboardAPI.class);
+        lbAPI.postLeaderboardReadRequest(uid);
     }
 
     @Override
@@ -367,40 +419,20 @@ public class PreferencesScreen extends PreferenceActivity implements IFxACallbac
             // I don't care.  Clear the login state even if fxa logout 'fails'
             clearFxaLoginState();
         }
-        if (s.equals(Intents.DISPLAY_NAME_WRITE)) {
-            fetchLeaderName(
-                    getPrefs().getLeaderboardUID());
-        }
+
         if (s.equals(Intents.OAUTH_VERIFY)) {
             clearFxaLoginState();
         }
     }
 
-    private void fetchLeaderName(String leaderboardUID) {
-        LeaderboardAPI lbAPI = new LeaderboardAPI();
-        String leaderName = lbAPI.getLeaderName(leaderboardUID);
-        if (leaderName != null) {
-            setNicknamePreferenceTitle(leaderName);
-        }
-    }
-
     @Override
     public void processProfileRead(JSONObject jsonObject) {
-        ProfileJson profileJson = new ProfileJson(jsonObject);
-        String email = profileJson.getEmail();
-
-        if (!TextUtils.isEmpty(email)) {
-            Prefs.getInstance(this).setEmail(email);
-            setFxALoginTitle(getPrefs().getBearerToken(), getPrefs().getEmail());
-        }
-        
+        // this is all unnecessary now
     }
 
     @Override
     public void processDisplayNameWrite() {
-        // Fetch the profile to make sure we have the proper display name
-        fetchLeaderName(
-                getPrefs().getLeaderboardUID());
+        // this is all unnecessary now
     }
 
     @Override

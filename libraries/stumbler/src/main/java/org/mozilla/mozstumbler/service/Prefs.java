@@ -18,7 +18,6 @@ import org.mozilla.mozstumbler.svclocator.services.log.LoggerUtil;
 import java.util.regex.Pattern;
 
 public class Prefs {
-    public static final String NICKNAME_PREF = "nickname";
     public static final String EMAIL_PREF = "email";
 
     public static final String WIFI_ONLY = "wifi_only";
@@ -46,7 +45,9 @@ public class Prefs {
 
     private static final String USE_OFFLINE_GEO = "use_offline_geo";
     private static final String USE_HIGH_POWER = "use_high_power";
+
     public static final String FXA_LOGIN_PREF = "fxaLogin";
+    public static final String LEADERBOARD_NICK = "leaderboardNickname";
 
     protected static Prefs sInstance;
     private final SharedPreferences mSharedPrefs;
@@ -148,7 +149,7 @@ public class Prefs {
     }
 
     public synchronized String getNickname() {
-        String nickname = getStringPref(NICKNAME_PREF);
+        String nickname = getStringPref(LEADERBOARD_NICK);
         if (nickname != null) {
             nickname = nickname.trim();
         }
@@ -158,7 +159,7 @@ public class Prefs {
     public synchronized void setNickname(String nick) {
         if (nick != null) {
             nick = nick.trim();
-            setStringPref(NICKNAME_PREF, nick);
+            setStringPref(LEADERBOARD_NICK, nick);
         }
     }
 

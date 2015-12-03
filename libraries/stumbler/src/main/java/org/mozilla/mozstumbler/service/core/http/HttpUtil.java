@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.lang.reflect.UndeclaredThrowableException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -130,7 +131,15 @@ public class HttpUtil implements IHttpUtil {
 
     public IResponse get(String urlString, Map<String, String> headers) {
         String HTTP_METHOD = "GET";
-        return getHttpResponse(urlString, headers, HTTP_METHOD);
+        try {
+            return getHttpResponse(urlString, headers, HTTP_METHOD);
+        } catch (UndeclaredThrowableException ute) {
+            ClientLog.e(LOG_TAG
+                    , "Something very bad happened: " + ute.getUndeclaredThrowable()
+                    , ute);
+        }
+        return new HTTPResponse(598, 0);
+
     }
 
     private IResponse getHttpResponse(String urlString, Map<String, String> headers, String HTTP_METHOD) {
@@ -147,6 +156,9 @@ public class HttpUtil implements IHttpUtil {
         if (headers == null) {
             headers = new HashMap<String, String>();
         }
+
+        Log.i(LOG_TAG, "GET ["+url  +"] : "+headers);
+
 
         try {
             httpURLConnection = (HttpURLConnection) mozOpenConnection(url);
@@ -253,6 +265,78 @@ public class HttpUtil implements IHttpUtil {
         } else {
             httpURLConnection.setRequestProperty("Content-Encoding", "gzip");
         }
+
+        httpURLConnection.setFixedLengthStreamingMode(wire_data.length);
+        try {
+            OutputStream out = new BufferedOutputStream(httpURLConnection.getOutputStream());
+            out.write(wire_data);
+            out.flush();
+            return new HTTPResponse(httpURLConnection.getResponseCode(),
+                    httpURLConnection.getHeaderFields(),
+                    getContentBody(httpURLConnection),
+                    wire_data.length);
+        } catch (IOException e) {
+            ClientLog.e(LOG_TAG, "post error", e);
+        } finally {
+            if (BuildConfig.DEBUG) {
+                String cipherSuite = ((HttpsURLConnection) httpURLConnection).getCipherSuite();
+                Log.i(LOG_TAG, "Negotiated HTTPS ciphers: " + cipherSuite);
+            }
+            httpURLConnection.disconnect();
+        }
+        return null;
+    }
+
+    @Override
+    public IResponse postNoCompress(String urlString, byte[] data, Map<String, String> headers) {
+
+        URL url = null;
+        HttpURLConnection httpURLConnection = null;
+
+        try {
+            url = new URL(urlString);
+        } catch (MalformedURLException e) {
+            throw new IllegalArgumentException("Invalid URL", e);
+        }
+
+        if (data == null) {
+            throw new IllegalArgumentException("Data must be not null");
+        }
+
+        if (headers == null) {
+            headers = new HashMap<String, String>();
+        }
+
+
+        try {
+            httpURLConnection = (HttpsURLConnection) mozOpenConnection(url);
+            httpURLConnection.setConnectTimeout(5000); // set timeout to 5 seconds
+            // HttpURLConnection and Java are braindead.
+            // http://stackoverflow.com/questions/8587913/what-exactly-does-urlconnection-setdooutput-affect
+            httpURLConnection.setDoOutput(true);
+            httpURLConnection.setRequestMethod("POST");
+        } catch (Exception e) {
+            ClientLog.e(LOG_TAG, "Couldn't open a connection: ", e);
+            return null;
+        }
+
+        httpURLConnection.setDoOutput(true);
+        httpURLConnection.setRequestProperty(USER_AGENT_HEADER, userAgent);
+        httpURLConnection.setRequestProperty("Content-Type", "application/json");
+
+        // Workaround for a bug in Android mHttpURLConnection. When the library
+        // reuses a stale connection, the connection may fail with an EOFException
+        // http://stackoverflow.com/questions/15411213/android-httpsurlconnection-eofexception/17791819#17791819
+        if (Build.VERSION.SDK_INT > 13 && Build.VERSION.SDK_INT < 19) {
+            httpURLConnection.setRequestProperty("Connection", "Close");
+        }
+
+        // Set headers
+        for (Map.Entry<String, String> entry : headers.entrySet()) {
+            httpURLConnection.setRequestProperty(entry.getKey(), entry.getValue());
+        }
+
+        byte[] wire_data = data;
 
         httpURLConnection.setFixedLengthStreamingMode(wire_data.length);
         try {

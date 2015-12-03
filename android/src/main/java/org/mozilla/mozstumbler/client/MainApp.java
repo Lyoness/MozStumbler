@@ -26,7 +26,9 @@ import org.acra.annotation.ReportsCrashes;
 import org.acra.sender.HttpSender;
 import org.mozilla.mozstumbler.BuildConfig;
 import org.mozilla.mozstumbler.R;
+import org.mozilla.mozstumbler.client.leaderboard.ILeaderboardAPI;
 import org.mozilla.mozstumbler.client.leaderboard.LBStumblerBundleReceiver;
+import org.mozilla.mozstumbler.client.leaderboard.LeaderboardAPI;
 import org.mozilla.mozstumbler.client.subactivities.DeveloperActivity;
 import org.mozilla.mozstumbler.client.subactivities.LogActivity;
 import org.mozilla.mozstumbler.client.util.NotificationUtil;
@@ -133,7 +135,7 @@ public class MainApp extends Application
         }
     };
 
-    public static ServiceConfig defaultServiceConfig() {
+    public ServiceConfig defaultServiceConfig() {
         /*
          This will configure the service map with all services required for runtime.
 
@@ -147,6 +149,8 @@ public class MainApp extends Application
         result.put(ISystemClock.class, ServiceConfig.load(SystemClock.class.getName()));
         result.put(ILocationService.class, ServiceConfig.load(MLSLocationService.class.getName()));
         result.put(ISimulatorService.class, ServiceConfig.load(SimulatorService.class.getName()));
+        result.put(ILeaderboardAPI.class, ServiceConfig.load(LeaderboardAPI.class.getName(), getApplicationContext()));
+
 
         if (BuildConfig.BUILD_TYPE.equals("unittest")) {
             result.put(ILogger.class, ServiceConfig.load(UnittestLogger.class.getName()));
